@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from pydantic import BaseModel, Field
-from passlib.context import CryptContext
+import bcrypt
 
 from database import get_db
 from models.user import User
@@ -10,17 +10,23 @@ from middleware.auth_middleware import create_access_token, get_current_user
 from services.crypto import crypto_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
-    """Хэширование пароля с обрезкой до 72 байт (лимит bcrypt)"""
-    return pwd_context.hash(password[:72])
+    """Хэширование пароля"""
+    pwd_bytes = password.encode("utf-8")[:72]
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str) -> bool:
     """Проверка пароля"""
-    return pwd_context.verify(password[:72], password_hash)
+    try:
+        pwd_bytes = password.encode("utf-8")[:72]
+        hash_bytes = password_hash.encode("utf-8")
+        return bcrypt.checkpw(pwd_bytes, hash_bytes)
+    except Exception:
+        return False
 
 
 # ==================== Схемы ====================
@@ -132,7 +138,6 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 @router.get("/me", response_model=UserProfile)
 async def get_me(current_user: User = Depends(get_current_user)):
-    """Получить свой профиль"""
     return UserProfile(
         user_id=str(current_user.id),
         username=current_user.username,
@@ -149,7 +154,6 @@ async def update_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Обновить свой профиль"""
     if req.display_name is not None:
         current_user.display_name = req.display_name
     if req.bio is not None:
@@ -173,7 +177,6 @@ async def get_user_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Получить профиль другого пользователя"""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
@@ -196,7 +199,6 @@ async def search_users(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Поиск пользователей по имени"""
     result = await db.execute(
         select(User).where(
             User.username.ilike(f"%{username}%")

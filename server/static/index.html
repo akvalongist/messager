@@ -65,30 +65,22 @@
     <!-- ==================== ГЛАВНЫЙ ЭКРАН ЧАТА ==================== -->
     <div id="chat-screen" class="screen">
         <!-- Сайдбар -->
-        <aside id="sidebar" class="sidebar">
-            <div class="sidebar-header">
-                <div class="user-info">
-                    <div class="avatar small" id="my-avatar">U</div>
+        <div class="sidebar-header">
+            <div class="user-info">
+                <div class="avatar small" id="my-avatar">U</div>
+                <div>
                     <span id="my-display-name">User</span>
-                </div>
-                <div class="sidebar-actions">
-                    <button class="icon-btn" id="btn-new-chat" title="Новый чат">✏️</button>
-                    <button class="icon-btn" id="btn-new-group" title="Новая группа">👥</button>
-                    <button class="icon-btn" id="btn-logout" title="Выйти">🚪</button>
+                    <div id="my-user-id" style="font-size: 10px; color: #6b6b80; cursor: pointer; margin-top: 2px;"
+                         onclick="app.copyMyId()" title="Нажми чтобы скопировать ID">
+                    </div>
                 </div>
             </div>
-
-            <div class="search-bar">
-                <input type="text" id="search-chats" placeholder="🔍 Поиск чатов...">
+            <div class="sidebar-actions">
+                <button class="icon-btn" id="btn-new-chat" title="Новый чат">✏️</button>
+                <button class="icon-btn" id="btn-new-group" title="Новая группа">👥</button>
+                <button class="icon-btn" id="btn-logout" title="Выйти">🚪</button>
             </div>
-
-            <div id="chat-list" class="chat-list">
-                <div class="empty-state">
-                    <p>Нет чатов</p>
-                    <p class="hint">Нажмите ✏️ чтобы начать</p>
-                </div>
-            </div>
-        </aside>
+        </div>
 
         <!-- Область чата -->
         <main id="chat-area" class="chat-area">
@@ -140,12 +132,10 @@
                 <div class="input-row">
                     <input type="file" id="file-input" hidden multiple>
                     <button class="icon-btn" id="btn-emoji">😊</button>
-                    <textarea
-                        id="message-input"
-                        placeholder="Напишите сообщение..."
-                        rows="1"
-                        maxlength="4096"
-                    ></textarea>
+                    <textarea id="message-input"
+                              placeholder="Напишите сообщение..."
+                              rows="1"
+                              maxlength="4096"></textarea>
                     <button class="icon-btn send-btn" id="btn-send">➤</button>
                 </div>
             </div>

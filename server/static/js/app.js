@@ -167,22 +167,24 @@ class MessengerApp {
     }
 
     // ==================== MAIN SCREEN ====================
-
     async enterChat() {
         document.getElementById('auth-screen').classList.remove('active');
         document.getElementById('chat-screen').classList.add('active');
 
-        // UI обновления
-        document.getElementById('my-display-name').textContent = this.currentUser.display_name || this.currentUser.username;
-        document.getElementById('my-avatar').textContent = UI.getInitials(this.currentUser.display_name || this.currentUser.username);
+        const displayName = this.currentUser.display_name || this.currentUser.username;
+        document.getElementById('my-display-name').textContent = displayName;
+        document.getElementById('my-avatar').textContent = UI.getInitials(displayName);
 
-        // Подключаем WebSocket
+        // Показываем ID в сайдбаре
+        const idEl = document.getElementById('my-user-id');
+        if (idEl) {
+            idEl.textContent = `ID: ${this.currentUser.user_id.substring(0, 8)}... 📋`;
+        }
+
         wsManager.connect(api.token);
-
-        // Загружаем чаты
         await this.loadChats();
 
-        UI.toast(`Привет, ${this.currentUser.display_name || this.currentUser.username}! 👋`, 'success');
+        UI.toast(`Привет, ${displayName}! 👋`, 'success');
     }
 
     // ==================== CHATS ====================
@@ -724,7 +726,13 @@ class MessengerApp {
             // Ignore audio errors
         }
     }
+    copyMyId() {
+        const id = this.currentUser.user_id;
+        navigator.clipboard.writeText(id);
+        UI.toast('ID скопирован! Отправьте его собеседнику', 'success');
+    }
 }
+
 
 // ==================== ЗАПУСК ====================
 const app = new MessengerApp();

@@ -4,7 +4,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field
 from datetime import datetime
-import uuid
 import secrets
 
 from database import get_db
@@ -16,7 +15,7 @@ router = APIRouter(prefix="/chats", tags=["chats"])
 
 
 class CreateDirectChatRequest(BaseModel):
-    user_id: str  # ID собеседника
+    user_id: str
 
 
 class CreateGroupRequest(BaseModel):
@@ -32,6 +31,7 @@ class ChatResponse(BaseModel):
     description: str
     avatar_url: str | None
     members_count: int
+    invite_code: str | None = None
     created_at: datetime
 
 
@@ -51,23 +51,26 @@ async def create_direct_chat(
     if not other_user:
         raise HTTPException(404, "Пользователь не найден")
 
-    if str(current_user.id) == req.user_id:
+    if str(current_user.id) == str(req.user_id):
         raise HTTPException(400, "Нельзя создать чат с самим собой")
 
     # Проверяем нет ли уже прямого чата
-    existing_chats = await db.execute(
+    my_chats = await db.execute(
         select(Chat)
         .join(ChatMember)
-        .where(Chat.chat_type == ChatType.DIRECT)
-        .where(ChatMember.user_id == current_user.id)
+        .where(
+            Chat.chat_type == ChatType.DIRECT.value,
+            ChatMember.user_id == str(current_user.id)
+        )
         .options(selectinload(Chat.members))
     )
-    for chat in existing_chats.scalars():
+
+    for chat in my_chats.scalars():
         member_ids = {str(m.user_id) for m in chat.members}
-        if req.user_id in member_ids:
+        if str(req.user_id) in member_ids:
             return ChatResponse(
                 id=str(chat.id),
-                chat_type=chat.chat_type.value,
+                chat_type=chat.chat_type,
                 name=other_user.display_name,
                 description="",
                 avatar_url=other_user.avatar_url,
@@ -76,13 +79,23 @@ async def create_direct_chat(
             )
 
     # Создаём новый чат
-    chat = Chat(chat_type=ChatType.DIRECT)
+    chat = Chat(chat_type=ChatType.DIRECT.value)
     db.add(chat)
     await db.flush()
 
     # Добавляем участников
-    db.add(ChatMember(chat_id=chat.id, user_id=current_user.id, role=MemberRole.MEMBER))
-    db.add(ChatMember(chat_id=chat.id, user_id=uuid.UUID(req.user_id), role=MemberRole.MEMBER))
+    member1 = ChatMember(
+        chat_id=str(chat.id),
+        user_id=str(current_user.id),
+        role=MemberRole.MEMBER.value
+    )
+    member2 = ChatMember(
+        chat_id=str(chat.id),
+        user_id=str(req.user_id),
+        role=MemberRole.MEMBER.value
+    )
+    db.add(member1)
+    db.add(member2)
 
     return ChatResponse(
         id=str(chat.id),
@@ -101,8 +114,9 @@ async def create_group(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    # Создаём группу
     chat = Chat(
-        chat_type=ChatType.GROUP,
+        chat_type=ChatType.GROUP.value,
         name=req.name,
         description=req.description,
         invite_code=secrets.token_urlsafe(16)
@@ -111,25 +125,35 @@ async def create_group(
     await db.flush()
 
     # Создатель = владелец
-    db.add(ChatMember(chat_id=chat.id, user_id=current_user.id, role=MemberRole.OWNER))
+    owner = ChatMember(
+        chat_id=str(chat.id),
+        user_id=str(current_user.id),
+        role=MemberRole.OWNER.value
+    )
+    db.add(owner)
+
+    members_count = 1
 
     # Добавляем участников
     for member_id in req.member_ids:
         result = await db.execute(select(User).where(User.id == member_id))
         if result.scalar_one_or_none():
-            db.add(ChatMember(
-                chat_id=chat.id,
-                user_id=uuid.UUID(member_id),
-                role=MemberRole.MEMBER
-            ))
+            member = ChatMember(
+                chat_id=str(chat.id),
+                user_id=str(member_id),
+                role=MemberRole.MEMBER.value
+            )
+            db.add(member)
+            members_count += 1
 
     return ChatResponse(
         id=str(chat.id),
         chat_type=ChatType.GROUP.value,
         name=chat.name,
-        description=chat.description,
+        description=chat.description or "",
         avatar_url=None,
-        members_count=len(req.member_ids) + 1,
+        members_count=members_count,
+        invite_code=chat.invite_code,
         created_at=chat.created_at
     )
 
@@ -142,17 +166,17 @@ async def get_my_chats(
     result = await db.execute(
         select(Chat)
         .join(ChatMember)
-        .where(ChatMember.user_id == current_user.id)
+        .where(ChatMember.user_id == str(current_user.id))
         .options(selectinload(Chat.members).selectinload(ChatMember.user))
     )
-    chats = result.scalars().all()
+    chats = result.scalars().unique().all()
 
     chat_list = []
     for chat in chats:
         name = chat.name
         avatar = chat.avatar_url
 
-        if chat.chat_type == ChatType.DIRECT:
+        if chat.chat_type == ChatType.DIRECT.value:
             other = next(
                 (m.user for m in chat.members if str(m.user_id) != str(current_user.id)),
                 None
@@ -163,11 +187,12 @@ async def get_my_chats(
 
         chat_list.append(ChatResponse(
             id=str(chat.id),
-            chat_type=chat.chat_type.value,
+            chat_type=chat.chat_type,
             name=name,
             description=chat.description or "",
             avatar_url=avatar,
             members_count=len(chat.members),
+            invite_code=chat.invite_code,
             created_at=chat.created_at
         ))
 
@@ -189,19 +214,24 @@ async def join_by_invite(
     if not chat:
         raise HTTPException(404, "Чат не найден")
 
-    # Проверяем не состоит ли уже
     is_member = any(str(m.user_id) == str(current_user.id) for m in chat.members)
     if is_member:
         raise HTTPException(400, "Вы уже в этом чате")
 
-    db.add(ChatMember(chat_id=chat.id, user_id=current_user.id, role=MemberRole.MEMBER))
+    member = ChatMember(
+        chat_id=str(chat.id),
+        user_id=str(current_user.id),
+        role=MemberRole.MEMBER.value
+    )
+    db.add(member)
 
     return ChatResponse(
         id=str(chat.id),
-        chat_type=chat.chat_type.value,
+        chat_type=chat.chat_type,
         name=chat.name,
         description=chat.description or "",
         avatar_url=chat.avatar_url,
         members_count=len(chat.members) + 1,
+        invite_code=chat.invite_code,
         created_at=chat.created_at
     )
