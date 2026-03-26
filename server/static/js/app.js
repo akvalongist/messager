@@ -471,6 +471,7 @@ class MessengerApp {
 
         let contentHtml = '';
 
+        // Имя отправителя в группах
         if (!isOwn && msg.sender_name) {
             const chat = this.getCurrentChat();
             if (chat && chat.chat_type === 'group') {
@@ -478,26 +479,71 @@ class MessengerApp {
             }
         }
 
-        if (msg.content) {
+        // Картинка — показываем прямо в чате
+        if (msg.file_url && msg.message_type === 'image') {
+            contentHtml += `
+                <div class="message-image-container">
+                    <img class="message-image" 
+                         src="${msg.file_url}" 
+                         alt="${UI.escapeHtml(msg.file_name || 'Фото')}" 
+                         loading="lazy"
+                         onclick="window.open('${msg.file_url}', '_blank')"
+                         onerror="this.style.display='none'">
+                </div>
+            `;
+            // Если есть подпись
+            if (msg.content && msg.content !== msg.file_name) {
+                contentHtml += `<div class="message-text">${this.formatMessageText(msg.content)}</div>`;
+            }
+        }
+        // Видео
+        else if (msg.file_url && msg.message_type === 'video') {
+            contentHtml += `
+                <div class="message-video-container">
+                    <video class="message-video" controls preload="metadata" style="max-width: 300px; border-radius: 8px;">
+                        <source src="${msg.file_url}" type="${msg.mime_type || 'video/mp4'}">
+                    </video>
+                </div>
+            `;
+        }
+        // Аудио / голосовое
+        else if (msg.file_url && (msg.message_type === 'voice' || msg.message_type === 'audio')) {
+            contentHtml += `
+                <div class="message-audio-container">
+                    <audio controls preload="metadata" style="width: 250px;">
+                        <source src="${msg.file_url}" type="${msg.mime_type || 'audio/mpeg'}">
+                    </audio>
+                </div>
+            `;
+        }
+        // Обычный файл
+        else if (msg.file_url) {
+            const icon = UI.getFileIcon(msg.mime_type);
+            const size = UI.formatFileSize(msg.file_size);
+            contentHtml += `
+                <div class="message-file">
+                    <a href="${msg.file_url}" target="_blank" download="${msg.file_name || 'file'}">
+                        <div class="file-info">
+                            <span class="file-icon">${icon}</span>
+                            <div class="file-details">
+                                <span class="file-name">${UI.escapeHtml(msg.file_name || 'Файл')}</span>
+                                <span class="file-size">${size}</span>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            `;
+            // Текст к файлу
+            if (msg.content && msg.content !== msg.file_name) {
+                contentHtml += `<div class="message-text">${this.formatMessageText(msg.content)}</div>`;
+            }
+        }
+        // Обычный текст
+        else if (msg.content) {
             contentHtml += `<div class="message-text">${this.formatMessageText(msg.content)}</div>`;
         }
 
-        if (msg.file_url) {
-            if (msg.mime_type && msg.mime_type.startsWith('image/')) {
-                contentHtml += `<img class="message-image" src="${msg.file_url}" alt="image" loading="lazy">`;
-            } else {
-                const icon = UI.getFileIcon(msg.mime_type);
-                const size = UI.formatFileSize(msg.file_size);
-                contentHtml += `
-                    <div class="message-file">
-                        <a href="${msg.file_url}" target="_blank" download>
-                            ${icon} ${UI.escapeHtml(msg.file_name || 'Файл')} ${size ? `(${size})` : ''}
-                        </a>
-                    </div>
-                `;
-            }
-        }
-
+        // Время и статус
         let metaHtml = `<span class="message-time">${UI.formatTime(msg.created_at)}</span>`;
         if (msg.is_edited) {
             metaHtml = `<span class="message-edited">ред.</span>` + metaHtml;
@@ -593,12 +639,23 @@ class MessengerApp {
                 UI.toast(`Загрузка ${file.name}...`, 'info');
                 const result = await api.uploadFile(file, this.currentChatId);
 
-                wsManager.sendMessage(this.currentChatId, '', {
-                    messageType: file.type.startsWith('image/') ? 'image' : 'file',
+                // Определяем тип
+                let messageType = 'file';
+                if (file.type.startsWith('image/')) {
+                    messageType = 'image';
+                } else if (file.type.startsWith('video/')) {
+                    messageType = 'video';
+                } else if (file.type.startsWith('audio/')) {
+                    messageType = 'voice';
+                }
+
+                // Отправляем сообщение с файлом
+                wsManager.sendMessage(this.currentChatId, file.name, {
+                    messageType: messageType,
                     fileUrl: result.url,
                     fileName: file.name,
                     fileSize: result.file_size,
-                    mimeType: result.mime_type
+                    mimeType: result.mime_type || file.type
                 });
 
                 UI.toast(`${file.name} отправлен!`, 'success');

@@ -960,3 +960,87 @@ body {
 .context-menu-item.danger {
     color: var(--danger);
 }
+
+/* ============================================================
+   ФАЙЛЫ И МЕДИА В СООБЩЕНИЯХ
+   ============================================================ */
+
+.message-image-container {
+    margin: 4px 0;
+}
+
+.message-image {
+    max-width: 300px;
+    max-height: 400px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: block;
+    transition: transform 0.2s ease;
+}
+
+    .message-image:hover {
+        transform: scale(1.02);
+    }
+
+.message-video-container {
+    margin: 4px 0;
+}
+
+.message-video {
+    max-width: 300px;
+    border-radius: 8px;
+}
+
+.message-audio-container {
+    margin: 4px 0;
+}
+
+.message-file {
+    margin: 4px 0;
+}
+
+    .message-file a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    transition: background 0.2s ease;
+}
+
+    .file-info:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+.file-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.file-details {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.file-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent-light);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.file-size {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}

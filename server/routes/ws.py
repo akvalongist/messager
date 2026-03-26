@@ -195,6 +195,7 @@ async def handle_message(sender_id: str, data: dict, websocket: WebSocket):
                 "file_url": file_url,
                 "file_name": file_name,
                 "file_size": file_size,
+                "mime_type": mime_type,
                 "reply_to_id": reply_to_id,
                 "is_edited": False,
                 "is_deleted": False,
