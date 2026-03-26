@@ -163,10 +163,16 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>ID пользователя</label>
-                    <input type="text" id="new-chat-user-id" placeholder="Вставьте ID пользователя">
+                    <label>Поиск по имени</label>
+                    <input type="text" id="search-user-input" placeholder="Введите имя пользователя..."
+                           oninput="app.searchUsers(this.value)">
                 </div>
-                <p class="hint">Нажмите на свой ID в сайдбаре чтобы скопировать</p>
+                <div id="search-results" style="max-height: 200px; overflow-y: auto;"></div>
+                <hr style="border-color: #2a2a4a; margin: 12px 0;">
+                <div class="form-group">
+                    <label>Или вставьте ID</label>
+                    <input type="text" id="new-chat-user-id" placeholder="UUID пользователя">
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary modal-cancel">Отмена</button>

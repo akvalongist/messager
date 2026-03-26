@@ -7,7 +7,7 @@ import os
 
 from database import init_db
 from config import get_settings
-from routes import auth, chats, messages, files, ws  # ← ДОБАВЛЕН ws
+from routes import auth, chats, messages, files, ws
 
 settings = get_settings()
 
@@ -18,17 +18,13 @@ async def lifespan(app: FastAPI):
     os.makedirs(settings.upload_dir, exist_ok=True)
     os.makedirs("static", exist_ok=True)
     print("🚀 Мессенджер запущен!")
-    print("📄 API документация: http://localhost:8000/docs")
+    print("📄 API: http://localhost:8000/docs")
     print("💬 Чат: http://localhost:8000")
     yield
     print("👋 Мессенджер остановлен")
 
 
-app = FastAPI(
-    title="Secure Messenger API",
-    version="1.0.0",
-    lifespan=lifespan
-)
+app = FastAPI(title="XAM Messenger", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,22 +34,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Загруженные файлы
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# ===== ВАЖНО: Порядок имеет значение! =====
 
-# Статика (CSS, JS)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# 1. WebSocket — ПЕРВЫМ
+app.include_router(ws.router)
 
-# REST маршруты
+# 2. REST API — ВТОРЫМ
 app.include_router(auth.router, prefix="/api")
 app.include_router(chats.router, prefix="/api")
 app.include_router(messages.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
 
-# WebSocket — ЭТО БЫЛО ПРОПУЩЕНО!
-app.include_router(ws.router)
 
-# Главная страница
+# 3. Главная страница — ПЕРЕД mount
 @app.get("/")
 async def root():
     return FileResponse("static/index.html")
+
+
+# 4. Статика — ПОСЛЕДНИМ (mount перехватывает всё!)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

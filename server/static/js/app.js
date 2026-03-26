@@ -23,7 +23,6 @@ class MessengerApp {
                 this.currentUser = JSON.parse(savedUser);
                 await this.enterChat();
             } catch (e) {
-                console.log('Токен устарел:', e);
                 this.showAuth();
             }
         } else {
@@ -32,7 +31,6 @@ class MessengerApp {
     }
 
     bindEvents() {
-        // Auth forms
         const loginForm = document.getElementById('login-form');
         const registerForm = document.getElementById('register-form');
 
@@ -43,7 +41,6 @@ class MessengerApp {
             registerForm.addEventListener('submit', (e) => this.handleRegister(e));
         }
 
-        // Auth switch
         const showRegister = document.getElementById('show-register');
         const showLogin = document.getElementById('show-login');
 
@@ -62,12 +59,10 @@ class MessengerApp {
             });
         }
 
-        // Sidebar buttons
         this.safeClick('btn-new-chat', () => UI.showModal('modal-new-chat'));
         this.safeClick('btn-new-group', () => UI.showModal('modal-new-group'));
         this.safeClick('btn-logout', () => this.logout());
 
-        // Modals
         document.querySelectorAll('.modal-close, .modal-cancel').forEach(btn => {
             btn.addEventListener('click', () => UI.hideAllModals());
         });
@@ -77,11 +72,9 @@ class MessengerApp {
             });
         });
 
-        // Create chat/group
         this.safeClick('btn-create-direct', () => this.createDirectChat());
         this.safeClick('btn-create-group', () => this.createGroup());
 
-        // Message input
         const input = document.getElementById('message-input');
         if (input) {
             input.addEventListener('keydown', (e) => {
@@ -98,7 +91,6 @@ class MessengerApp {
 
         this.safeClick('btn-send', () => this.sendMessage());
 
-        // File upload
         this.safeClick('btn-attach', () => {
             const fileInput = document.getElementById('file-input');
             if (fileInput) fileInput.click();
@@ -109,42 +101,29 @@ class MessengerApp {
             fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
         }
 
-        // Reply cancel
         this.safeClick('btn-cancel-reply', () => this.cancelReply());
-
-        // Mobile back
         this.safeClick('btn-back', () => this.showSidebar());
 
-        // Search
         const searchInput = document.getElementById('search-chats');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => this.filterChats(e.target.value));
         }
 
-        // Context menu close
         document.addEventListener('click', () => {
             document.querySelectorAll('.context-menu').forEach(m => m.remove());
         });
 
-        // WebSocket events
         wsManager.on('new_message', (msg) => this.onNewMessage(msg));
         wsManager.on('typing', (data) => this.onTyping(data));
         wsManager.on('read', (data) => this.onRead(data));
         wsManager.on('message_edited', (data) => this.onMessageEdited(data));
-        wsManager.on('connected', () => {
-            console.log('✅ WS подключён');
-        });
-        wsManager.on('disconnected', () => {
-            UI.toast('Переподключение...', 'error');
-        });
+        wsManager.on('connected', () => console.log('✅ WS подключён'));
+        wsManager.on('disconnected', () => UI.toast('Переподключение...', 'error'));
     }
 
-    // Безопасный клик — не падает если элемент не найден
     safeClick(id, callback) {
         const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('click', callback);
-        }
+        if (el) el.addEventListener('click', callback);
     }
 
     // ==================== AUTH ====================
@@ -193,7 +172,6 @@ class MessengerApp {
         this.currentChatId = null;
         this.chats = [];
         this.messages = {};
-
         document.getElementById('chat-screen').classList.remove('active');
         document.getElementById('auth-screen').classList.add('active');
         UI.toast('Вы вышли', 'info');
@@ -226,6 +204,58 @@ class MessengerApp {
         const id = this.currentUser.user_id;
         navigator.clipboard.writeText(id);
         UI.toast('ID скопирован! Отправьте его собеседнику', 'success');
+    }
+
+    // ==================== SEARCH USERS ====================
+
+    async searchUsers(query) {
+        const container = document.getElementById('search-results');
+        if (!container) return;
+
+        if (query.length < 2) {
+            container.innerHTML = '<p style="color: #6b6b80; font-size: 13px; padding: 8px;">Минимум 2 символа</p>';
+            return;
+        }
+
+        try {
+            const data = await api.request('GET', `/auth/search/${encodeURIComponent(query)}`);
+            const users = data.users || [];
+
+            if (users.length === 0) {
+                container.innerHTML = '<p style="color: #6b6b80; font-size: 13px; padding: 8px;">Никого не найдено</p>';
+                return;
+            }
+
+            container.innerHTML = users.map(u => `
+                <div class="chat-item" style="padding: 8px 12px; cursor: pointer;"
+                     onclick="app.startChatWithUser('${u.user_id}')">
+                    <div class="avatar small" style="background: ${UI.getAvatarColor(u.display_name)}">
+                        ${UI.getInitials(u.display_name)}
+                    </div>
+                    <div class="chat-item-info">
+                        <div class="chat-item-name">${UI.escapeHtml(u.display_name)}</div>
+                        <div class="chat-item-last-message">@${UI.escapeHtml(u.username)}</div>
+                    </div>
+                    <span style="font-size: 10px; color: ${u.is_online ? '#10B981' : '#6b6b80'}">
+                        ${u.is_online ? '🟢' : '⚫'}
+                    </span>
+                </div>
+            `).join('');
+        } catch (error) {
+            container.innerHTML = '<p style="color: #EF4444; font-size: 13px; padding: 8px;">Ошибка поиска</p>';
+        }
+    }
+
+    async startChatWithUser(userId) {
+        try {
+            const chat = await api.createDirectChat(userId);
+            UI.hideAllModals();
+            await this.loadChats();
+            await this.selectChat(chat.id);
+            UI.toast('Чат создан!', 'success');
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
     }
 
     // ==================== CHATS ====================
@@ -277,7 +307,6 @@ class MessengerApp {
         const chat = this.chats.find(c => c.id === chatId);
         if (!chat) return;
 
-        // Показываем элементы чата
         const noChat = document.getElementById('no-chat-selected');
         const header = document.getElementById('chat-header');
         const messagesContainer = document.getElementById('messages-container');
@@ -288,7 +317,6 @@ class MessengerApp {
         if (messagesContainer) messagesContainer.classList.remove('hidden');
         if (inputArea) inputArea.classList.remove('hidden');
 
-        // Заголовок
         const chatName = document.getElementById('chat-name');
         const chatAvatar = document.getElementById('chat-avatar');
         const chatStatus = document.getElementById('chat-status');
@@ -302,7 +330,6 @@ class MessengerApp {
             chatStatus.textContent = chat.chat_type === 'group' ? `${chat.members_count} участников` : '';
         }
 
-        // Подсвечиваем активный
         document.querySelectorAll('.chat-item').forEach(item => {
             item.classList.toggle('active', item.dataset.chatId === chatId);
         });
@@ -340,7 +367,7 @@ class MessengerApp {
 
         const userId = input.value.trim();
         if (!userId) {
-            UI.toast('Введите ID пользователя', 'error');
+            UI.toast('Введите ID или найдите пользователя через поиск', 'error');
             return;
         }
 
@@ -444,7 +471,6 @@ class MessengerApp {
 
         let contentHtml = '';
 
-        // Sender name for groups
         if (!isOwn && msg.sender_name) {
             const chat = this.getCurrentChat();
             if (chat && chat.chat_type === 'group') {
@@ -452,12 +478,10 @@ class MessengerApp {
             }
         }
 
-        // Content
         if (msg.content) {
             contentHtml += `<div class="message-text">${this.formatMessageText(msg.content)}</div>`;
         }
 
-        // File
         if (msg.file_url) {
             if (msg.mime_type && msg.mime_type.startsWith('image/')) {
                 contentHtml += `<img class="message-image" src="${msg.file_url}" alt="image" loading="lazy">`;
@@ -474,7 +498,6 @@ class MessengerApp {
             }
         }
 
-        // Meta
         let metaHtml = `<span class="message-time">${UI.formatTime(msg.created_at)}</span>`;
         if (msg.is_edited) {
             metaHtml = `<span class="message-edited">ред.</span>` + metaHtml;
@@ -497,10 +520,7 @@ class MessengerApp {
     formatMessageText(text) {
         if (!text) return '';
         let html = UI.escapeHtml(text);
-        html = html.replace(
-            /(https?:\/\/[^\s<]+)/g,
-            '<a href="$1" target="_blank" style="color: var(--accent-light)">$1</a>'
-        );
+        html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color: var(--accent-light)">$1</a>');
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
         html = html.replace(/`(.*?)`/g, '<code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">$1</code>');
@@ -517,10 +537,9 @@ class MessengerApp {
         if (!content || !this.currentChatId) return;
 
         wsManager.sendMessage(this.currentChatId, content, {
-            replyToId: this.replyTo?.id || null
+            replyToId: this.replyTo ? this.replyTo.id : null
         });
 
-        // Добавляем сообщение локально сразу (оптимистичное обновление)
         const localMsg = {
             id: 'local-' + Date.now(),
             chat_id: this.currentChatId,
@@ -531,7 +550,7 @@ class MessengerApp {
             file_url: null,
             file_name: null,
             file_size: null,
-            reply_to_id: this.replyTo?.id || null,
+            reply_to_id: null,
             is_edited: false,
             is_deleted: false,
             created_at: new Date().toISOString()
@@ -629,7 +648,6 @@ class MessengerApp {
         menu.style.top = `${Math.min(event.clientY, window.innerHeight - 150)}px`;
 
         document.body.appendChild(menu);
-
         setTimeout(() => {
             document.addEventListener('click', () => menu.remove(), { once: true });
         }, 10);
@@ -637,7 +655,7 @@ class MessengerApp {
 
     copyMessage(messageId) {
         const msg = (this.messages[this.currentChatId] || []).find(m => m.id === messageId);
-        if (msg?.content) {
+        if (msg && msg.content) {
             navigator.clipboard.writeText(msg.content);
             UI.toast('Скопировано!', 'success');
         }
@@ -672,12 +690,10 @@ class MessengerApp {
 
     onNewMessage(msg) {
         const chatId = msg.chat_id;
-
         if (!this.messages[chatId]) {
             this.messages[chatId] = [];
         }
 
-        // Не добавляем дубликаты
         const exists = this.messages[chatId].some(m => m.id === msg.id);
         if (!exists) {
             this.messages[chatId].push(msg);
@@ -687,23 +703,16 @@ class MessengerApp {
             this.renderMessages(chatId);
         }
 
-        // Обновляем превью в списке чатов
         const lastMsgEl = document.getElementById(`last-msg-${chatId}`);
         const timeEl = document.getElementById(`chat-time-${chatId}`);
-        if (lastMsgEl) {
-            lastMsgEl.textContent = (msg.content || msg.file_name || '📎').substring(0, 40);
-        }
-        if (timeEl) {
-            timeEl.textContent = UI.formatTime(msg.created_at);
-        }
+        if (lastMsgEl) lastMsgEl.textContent = (msg.content || msg.file_name || '📎').substring(0, 40);
+        if (timeEl) timeEl.textContent = UI.formatTime(msg.created_at);
 
-        // Уведомление
         if (chatId !== this.currentChatId) {
             UI.toast(`${msg.sender_name}: ${(msg.content || '📎').substring(0, 50)}`, 'info');
             this.playNotificationSound();
         }
 
-        // Скрываем typing
         const typingEl = document.getElementById('typing-indicator');
         if (typingEl) typingEl.classList.add('hidden');
     }
@@ -722,9 +731,7 @@ class MessengerApp {
         }
     }
 
-    onRead(data) {
-        console.log('Read:', data);
-    }
+    onRead(data) { }
 
     onMessageEdited(data) {
         if (!this.currentChatId) return;
@@ -736,8 +743,6 @@ class MessengerApp {
             this.renderMessages(this.currentChatId);
         }
     }
-
-    // ==================== HELPERS ====================
 
     getCurrentChat() {
         return this.chats.find(c => c.id === this.currentChatId);

@@ -1,13 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select, desc
 from pydantic import BaseModel
 from datetime import datetime
 
 from database import get_db
 from models.user import User
-from models.message import Message, MessageType, ReadReceipt
+from models.message import Message
 from models.chat import ChatMember
 from middleware.auth_middleware import get_current_user
 
@@ -47,19 +46,17 @@ async def get_messages(
     # Проверяем доступ
     membership = await db.execute(
         select(ChatMember).where(
-            and_(
-                ChatMember.chat_id == chat_id,
-                ChatMember.user_id == current_user.id
-            )
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id == str(current_user.id)
         )
     )
     if not membership.scalar_one_or_none():
         raise HTTPException(403, "Нет доступа к чату")
 
+    # Получаем сообщения
     query = (
         select(Message)
         .where(Message.chat_id == chat_id)
-        .options(selectinload(Message.sender))
         .order_by(desc(Message.created_at))
         .limit(limit + 1)
     )
@@ -74,14 +71,24 @@ async def get_messages(
     messages = messages[:limit]
     messages.reverse()
 
+    # Получаем имена отправителей
+    sender_names = {}
+    for msg in messages:
+        if msg.sender_id and msg.sender_id not in sender_names:
+            user_result = await db.execute(
+                select(User).where(User.id == msg.sender_id)
+            )
+            user = user_result.scalar_one_or_none()
+            sender_names[msg.sender_id] = user.display_name if user else "Unknown"
+
     return MessagesListResponse(
         messages=[
             MessageResponse(
                 id=str(m.id),
                 chat_id=str(m.chat_id),
                 sender_id=str(m.sender_id) if m.sender_id else None,
-                sender_name=m.sender.display_name if m.sender else None,
-                message_type=m.message_type.value,
+                sender_name=sender_names.get(m.sender_id),
+                message_type=m.message_type,
                 content=m.content if not m.is_deleted else None,
                 encrypted_content=m.encrypted_content if not m.is_deleted else None,
                 file_url=m.file_url if not m.is_deleted else None,
