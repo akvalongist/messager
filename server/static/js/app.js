@@ -62,6 +62,8 @@ class MessengerApp {
         this.safeClick('btn-new-chat', () => UI.showModal('modal-new-chat'));
         this.safeClick('btn-new-group', () => UI.showModal('modal-new-group'));
         this.safeClick('btn-logout', () => this.logout());
+        this.safeClick('btn-chat-info', () => this.showChatInfo());      // ← ДОБАВЬ
+        this.safeClick('btn-join-invite', () => UI.showModal('modal-join-invite'));  // ← ДОБАВЬ
 
         document.querySelectorAll('.modal-close, .modal-cancel').forEach(btn => {
             btn.addEventListener('click', () => UI.hideAllModals());
@@ -812,6 +814,184 @@ class MessengerApp {
             msg.content = data.content;
             msg.is_edited = true;
             this.renderMessages(this.currentChatId);
+        }
+    }
+
+    // ==================== GROUP MANAGEMENT ====================
+
+    async showChatInfo() {
+        if (!this.currentChatId) return;
+
+        try {
+            const info = await api.getChatInfo(this.currentChatId);
+
+            document.getElementById('info-chat-name').textContent = info.name || 'Информация';
+
+            // Инвайт ссылка
+            const inviteSection = document.getElementById('invite-section');
+            const inviteInput = document.getElementById('invite-link');
+            if (info.invite_code) {
+                inviteSection.style.display = 'block';
+                inviteInput.value = info.invite_code;
+            } else {
+                inviteSection.style.display = 'none';
+            }
+
+            // Количество
+            document.getElementById('members-count').textContent = info.members.length;
+
+            // Список участников
+            const membersList = document.getElementById('members-list');
+            const myRole = info.members.find(m => m.user_id === this.currentUser.user_id)?.role;
+
+            membersList.innerHTML = info.members.map(m => {
+                const isMe = m.user_id === this.currentUser.user_id;
+                const roleIcon = m.role === 'owner' ? '👑' : m.role === 'admin' ? '⭐' : '';
+                const onlineIcon = m.is_online ? '🟢' : '⚫';
+                const canRemove = (myRole === 'owner' || myRole === 'admin') && !isMe && m.role !== 'owner';
+
+                return `
+                    <div class="chat-item" style="padding: 8px 12px;">
+                        <div class="avatar small" style="background: ${UI.getAvatarColor(m.display_name)}">
+                            ${UI.getInitials(m.display_name)}
+                        </div>
+                        <div class="chat-item-info">
+                            <div class="chat-item-name">
+                                ${roleIcon} ${UI.escapeHtml(m.display_name)} ${isMe ? '(вы)' : ''}
+                            </div>
+                            <div class="chat-item-last-message">
+                                ${onlineIcon} @${UI.escapeHtml(m.username)}
+                            </div>
+                        </div>
+                        ${canRemove ? `
+                            <button class="icon-btn" style="color: #EF4444; font-size: 14px;"
+                                    onclick="app.removeMember('${m.user_id}')"
+                                    title="Удалить из группы">✕</button>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            // Очищаем поиск
+            document.getElementById('add-member-search').value = '';
+            document.getElementById('add-member-results').innerHTML = '';
+
+            UI.showModal('modal-chat-info');
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+    }
+
+    async searchMembersToAdd(query) {
+        const container = document.getElementById('add-member-results');
+        if (!container) return;
+
+        if (query.length < 2) {
+            container.innerHTML = '';
+            return;
+        }
+
+        try {
+            const data = await api.request('GET', `/auth/search/${encodeURIComponent(query)}`);
+            const users = data.users || [];
+
+            if (users.length === 0) {
+                container.innerHTML = '<p style="color: #6b6b80; font-size: 13px; padding: 4px;">Никого не найдено</p>';
+                return;
+            }
+
+            container.innerHTML = users.map(u => `
+                <div class="chat-item" style="padding: 6px 12px; cursor: pointer;"
+                     onclick="app.addMemberToGroup('${u.user_id}', '${UI.escapeHtml(u.display_name)}')">
+                    <div class="avatar small" style="background: ${UI.getAvatarColor(u.display_name)}; width: 28px; height: 28px; font-size: 11px;">
+                        ${UI.getInitials(u.display_name)}
+                    </div>
+                    <div class="chat-item-info">
+                        <div class="chat-item-name" style="font-size: 13px;">${UI.escapeHtml(u.display_name)}</div>
+                    </div>
+                    <span style="font-size: 18px; color: #10B981;">+</span>
+                </div>
+            `).join('');
+        } catch (error) {
+            container.innerHTML = '';
+        }
+    }
+
+    async addMemberToGroup(userId, displayName) {
+        if (!this.currentChatId) return;
+
+        try {
+            await api.addMember(this.currentChatId, userId);
+            UI.toast(`${displayName} добавлен в группу!`, 'success');
+            await this.showChatInfo();
+            await this.loadChats();
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+    }
+
+    async removeMember(userId) {
+        if (!this.currentChatId) return;
+
+        try {
+            await api.removeMember(this.currentChatId, userId);
+            UI.toast('Участник удалён', 'info');
+            await this.showChatInfo();
+            await this.loadChats();
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+    }
+
+    copyInviteLink() {
+        const input = document.getElementById('invite-link');
+        if (input && input.value) {
+            navigator.clipboard.writeText(input.value);
+            UI.toast('Инвайт-код скопирован! Отправьте его другу', 'success');
+        }
+    }
+
+    async leaveGroup() {
+        if (!this.currentChatId) return;
+
+        if (!confirm('Вы уверены что хотите покинуть группу?')) return;
+
+        try {
+            await api.leaveChat(this.currentChatId);
+            UI.hideAllModals();
+            this.currentChatId = null;
+
+            document.getElementById('no-chat-selected').classList.remove('hidden');
+            document.getElementById('chat-header').classList.add('hidden');
+            document.getElementById('messages-container').classList.add('hidden');
+            document.getElementById('message-input-area').classList.add('hidden');
+
+            await this.loadChats();
+            UI.toast('Вы покинули группу', 'info');
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+    }
+
+    async joinByInvite() {
+        const input = document.getElementById('join-invite-code');
+        if (!input) return;
+
+        const code = input.value.trim();
+        if (!code) {
+            UI.toast('Введите инвайт-код', 'error');
+            return;
+        }
+
+        try {
+            const chat = await api.joinByInvite(code);
+            UI.hideAllModals();
+            input.value = '';
+            await this.loadChats();
+            await this.selectChat(chat.id);
+            UI.toast(`Вы присоединились к "${chat.name}"!`, 'success');
+        } catch (error) {
+            UI.toast(error.message, 'error');
         }
     }
 

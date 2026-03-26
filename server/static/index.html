@@ -80,6 +80,7 @@
                 <div class="sidebar-actions">
                     <button class="icon-btn" id="btn-new-chat" title="Новый чат">✏️</button>
                     <button class="icon-btn" id="btn-new-group" title="Новая группа">👥</button>
+                    <button class="icon-btn" id="btn-join-invite" title="Присоединиться по ссылке">🔗</button>
                     <button class="icon-btn" id="btn-logout" title="Выйти">🚪</button>
                 </div>
             </div>
@@ -200,6 +201,70 @@
             <div class="modal-footer">
                 <button class="btn-secondary modal-cancel">Отмена</button>
                 <button class="btn-primary" id="btn-create-group">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Информация о чате -->
+    <div id="modal-chat-info" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="info-chat-name">Информация о группе</h3>
+                <button class="icon-btn modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <!-- Инвайт ссылка -->
+                <div id="invite-section" style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; color: #a0a0b8; text-transform: uppercase;">Ссылка-приглашение</label>
+                    <div style="display: flex; gap: 8px; margin-top: 4px;">
+                        <input type="text" id="invite-link" readonly
+                               style="flex: 1; padding: 8px 12px; background: #1a1a3e; border: 1px solid #2a2a4a; border-radius: 8px; color: white; font-size: 13px;">
+                        <button class="btn-primary" style="padding: 8px 16px;" onclick="app.copyInviteLink()">📋</button>
+                    </div>
+                </div>
+
+                <!-- Добавить участника -->
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; color: #a0a0b8; text-transform: uppercase;">Добавить участника</label>
+                    <div style="display: flex; gap: 8px; margin-top: 4px;">
+                        <input type="text" id="add-member-search" placeholder="Поиск по имени..."
+                               style="flex: 1; padding: 8px 12px; background: #1a1a3e; border: 1px solid #2a2a4a; border-radius: 8px; color: white; font-size: 13px;"
+                               oninput="app.searchMembersToAdd(this.value)">
+                    </div>
+                    <div id="add-member-results" style="max-height: 150px; overflow-y: auto; margin-top: 8px;"></div>
+                </div>
+
+                <!-- Список участников -->
+                <div>
+                    <label style="font-size: 12px; color: #a0a0b8; text-transform: uppercase;">
+                        Участники (<span id="members-count">0</span>)
+                    </label>
+                    <div id="members-list" style="max-height: 300px; overflow-y: auto; margin-top: 8px;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" style="color: #EF4444; border-color: #EF4444;" onclick="app.leaveGroup()">Покинуть группу</button>
+                <button class="btn-secondary modal-cancel">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Присоединиться по ссылке -->
+    <div id="modal-join-invite" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Присоединиться к группе</h3>
+                <button class="icon-btn modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Инвайт-код</label>
+                    <input type="text" id="join-invite-code" placeholder="Вставьте код приглашения">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary modal-cancel">Отмена</button>
+                <button class="btn-primary" onclick="app.joinByInvite()">Присоединиться</button>
             </div>
         </div>
     </div>

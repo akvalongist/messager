@@ -135,6 +135,29 @@ class API {
 
         return await response.json();
     }
+    // ==================== GROUP MANAGEMENT ====================
+
+    // ==================== GROUP MANAGEMENT ====================
+
+    async getChatInfo(chatId) {
+        return await this.request('GET', `/chats/${chatId}/info`);
+    }
+
+    async addMember(chatId, userId) {
+        return await this.request('POST', `/chats/${chatId}/members`, { user_id: userId });
+    }
+
+    async removeMember(chatId, userId) {
+        return await this.request('DELETE', `/chats/${chatId}/members/${userId}`);
+    }
+
+    async leaveChat(chatId) {
+        return await this.request('POST', `/chats/${chatId}/leave`);
+    }
+
+    async joinByInvite(inviteCode) {
+        return await this.request('POST', `/chats/join/${inviteCode}`);
+    }
 }
 
 const api = new API();
