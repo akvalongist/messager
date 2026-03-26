@@ -63,7 +63,17 @@ class MessengerApp {
         this.safeClick('btn-new-group', () => UI.showModal('modal-new-group'));
         this.safeClick('btn-logout', () => this.logout());
         this.safeClick('btn-chat-info', () => this.showChatInfo());      // ← ДОБАВЬ
-        this.safeClick('btn-join-invite', () => UI.showModal('modal-join-invite'));  // ← ДОБАВЬ
+        // СТИКЕРЫ - Кнопки панели
+        this.safeClick('btn-emoji', () => this.toggleStickerPanel());
+        this.safeClick('btn-create-pack', () => this.showCreatePack());
+        this.safeClick('btn-browse-packs', () => this.showBrowsePacks());
+        this.safeClick('btn-close-stickers', () => {
+            const panel = document.getElementById('sticker-panel');
+            if (panel) panel.classList.add('hidden');
+        });
+
+        // СТИКЕРЫ - Модалки
+        this.safeClick('btn-submit-pack', () => this.createPack());
 
         document.querySelectorAll('.modal-close, .modal-cancel').forEach(btn => {
             btn.addEventListener('click', () => UI.hideAllModals());
@@ -481,8 +491,16 @@ class MessengerApp {
             }
         }
 
+        // Стикер — без фона, просто картинка
+        if (msg.file_url && msg.message_type === 'sticker') {
+            contentHtml += `
+                <div class="sticker-message-container" style="background: transparent !important; padding: 0;">
+                    <img class="sticker-message" src="${msg.file_url}" alt="sticker" loading="lazy" style="max-width: 160px; max-height: 160px; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2));">
+                </div>
+            `;
+        }
         // Картинка — показываем прямо в чате
-        if (msg.file_url && msg.message_type === 'image') {
+        else if (msg.file_url && msg.message_type === 'image') {
             contentHtml += `
                 <div class="message-image-container">
                     <img class="message-image" 
@@ -554,12 +572,15 @@ class MessengerApp {
             metaHtml += `<span class="message-status">✓</span>`;
         }
 
+        // Для стикеров убираем фон пузыря (background: transparent)
+        const bubbleStyle = msg.message_type === 'sticker' ? 'background: transparent; box-shadow: none; padding: 0;' : '';
+
         return `
             <div class="message ${msgClass}" data-message-id="${msg.id}"
                  oncontextmenu="app.showMessageMenu(event, '${msg.id}')">
-                <div class="message-bubble">
+                <div class="message-bubble" style="${bubbleStyle}">
                     ${contentHtml}
-                    <div class="message-meta">${metaHtml}</div>
+                    <div class="message-meta" style="${msg.message_type === 'sticker' ? 'position: absolute; bottom: 0; right: -40px; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 10px;' : ''}">${metaHtml}</div>
                 </div>
             </div>
         `;
@@ -995,6 +1016,251 @@ class MessengerApp {
         }
     }
 
+    // ==================== STICKERS ====================
+
+    async toggleStickerPanel() {
+        const panel = document.getElementById('sticker-panel');
+        if (!panel) return;
+
+        if (panel.classList.contains('hidden')) {
+            await this.loadStickers();
+            panel.classList.remove('hidden');
+        } else {
+            panel.classList.add('hidden');
+        }
+    }
+
+    async loadStickers() {
+        try {
+            this.stickerPacks = await api.getMyStickers();
+            this.renderStickerTabs();
+            if (this.stickerPacks.length > 0) {
+                this.selectStickerPack(0);
+            } else {
+                const grid = document.getElementById('sticker-grid');
+                if (grid) grid.innerHTML = '<p style="color: #6b6b80; text-align: center; padding: 20px; grid-column: 1/-1;">Нет стикеров. Нажмите ➕ чтобы создать пак</p>';
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки стикеров:', error);
+        }
+    }
+
+    renderStickerTabs() {
+        const tabs = document.getElementById('sticker-tabs');
+        if (!tabs || !this.stickerPacks) return;
+
+        tabs.innerHTML = this.stickerPacks.map((pack, i) => {
+            const cover = pack.cover_url
+                ? `<img src="${pack.cover_url}" alt="${pack.name}">`
+                : `<span class="tab-emoji">📦</span>`;
+            return `
+                <button class="sticker-tab ${i === this.currentPackIndex ? 'active' : ''}"
+                        onclick="app.selectStickerPack(${i})"
+                        title="${UI.escapeHtml(pack.name)}">
+                    ${cover}
+                </button>
+            `;
+        }).join('');
+    }
+
+    selectStickerPack(index) {
+        this.currentPackIndex = index;
+        const pack = this.stickerPacks[index];
+        if (!pack) return;
+
+        this.renderStickerTabs();
+
+        const grid = document.getElementById('sticker-grid');
+        if (!grid) return;
+
+        if (pack.stickers.length === 0) {
+            grid.innerHTML = '<p style="color: #6b6b80; text-align: center; padding: 20px; grid-column: 1/-1;">Пак пустой</p>';
+            return;
+        }
+
+        grid.innerHTML = pack.stickers.map(s => `
+            <div class="sticker-item" onclick="app.sendSticker('${s.file_url}')" title="${s.emoji}">
+                <img src="${s.file_url}" alt="${s.emoji}" loading="lazy">
+            </div>
+        `).join('');
+
+        // Добавляем кнопку управления если это мой пак
+        if (pack.creator_id === this.currentUser.user_id) {
+            grid.innerHTML += `
+                <div class="sticker-item" onclick="app.managePack('${pack.id}')" 
+                     style="border: 2px dashed #2a2a4a; font-size: 24px;" title="Управление">
+                    ⚙️
+                </div>
+            `;
+        }
+    }
+
+    sendSticker(fileUrl) {
+        if (!this.currentChatId) return;
+
+        wsManager.sendMessage(this.currentChatId, '', {
+            messageType: 'sticker',
+            fileUrl: fileUrl,
+            fileName: 'sticker',
+            mimeType: 'image/png'
+        });
+
+        // Закрываем панель
+        const panel = document.getElementById('sticker-panel');
+        if (panel) panel.classList.add('hidden');
+    }
+
+    showCreatePack() {
+        UI.showModal('modal-create-pack');
+    }
+
+    async createPack() {
+        const nameInput = document.getElementById('pack-name');
+        const descInput = document.getElementById('pack-description');
+        if (!nameInput) return;
+
+        const name = nameInput.value.trim();
+        if (!name) {
+            UI.toast('Введите название', 'error');
+            return;
+        }
+
+        try {
+            const pack = await api.createStickerPack(name, descInput?.value?.trim() || '');
+            UI.hideAllModals();
+            nameInput.value = '';
+            if (descInput) descInput.value = '';
+            UI.toast(`Пак "${name}" создан!`, 'success');
+
+            // Открываем управление
+            this.managePack(pack.id);
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+    }
+
+    async managePack(packId) {
+        this.currentManagePackId = packId;
+
+        try {
+            // Загружаем свежие данные
+            await this.loadStickers();
+            const pack = this.stickerPacks.find(p => p.id === packId);
+            if (!pack) {
+                UI.toast('Пак не найден', 'error');
+                return;
+            }
+
+            document.getElementById('manage-pack-title').textContent = `Управление: ${pack.name}`;
+
+            const container = document.getElementById('manage-pack-stickers');
+            if (container) {
+                container.innerHTML = pack.stickers.map(s => `
+                    <div style="position: relative;">
+                        <img src="${s.file_url}" style="width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 8px; background: #1a1a3e;">
+                        <button onclick="app.deleteSticker('${s.id}')"
+                                style="position: absolute; top: -4px; right: -4px; width: 20px; height: 20px; border-radius: 50%; background: #EF4444; border: none; color: white; cursor: pointer; font-size: 10px;">✕</button>
+                    </div>
+                `).join('');
+            }
+
+            // Привязываем загрузку файла
+            const fileInput = document.getElementById('sticker-file-input');
+            if (fileInput) {
+                fileInput.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const emoji = document.getElementById('sticker-emoji')?.value || '😀';
+
+                    try {
+                        UI.toast('Загрузка стикера...', 'info');
+                        await api.uploadSticker(packId, file, emoji);
+                        UI.toast('Стикер добавлен!', 'success');
+                        await this.managePack(packId);
+                    } catch (error) {
+                        UI.toast(error.message, 'error');
+                    }
+
+                    fileInput.value = '';
+                };
+            }
+
+            UI.showModal('modal-manage-pack');
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+    }
+
+    async deleteSticker(stickerId) {
+        try {
+            await api.deleteSticker(stickerId);
+            UI.toast('Стикер удалён', 'info');
+            if (this.currentManagePackId) {
+                await this.managePack(this.currentManagePackId);
+            }
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+    }
+
+    async deleteCurrentPack() {
+        if (!this.currentManagePackId) return;
+        if (!confirm('Удалить этот стикерпак?')) return;
+
+        try {
+            await api.deleteStickerPack(this.currentManagePackId);
+            UI.hideAllModals();
+            UI.toast('Пак удалён', 'info');
+            await this.loadStickers();
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+    }
+
+    async showBrowsePacks() {
+        try {
+            const packs = await api.browseStickerPacks();
+            const container = document.getElementById('browse-packs-list');
+            if (!container) return;
+
+            if (packs.length === 0) {
+                container.innerHTML = '<p style="color: #6b6b80; text-align: center;">Нет доступных паков</p>';
+            } else {
+                container.innerHTML = packs.map(pack => `
+                    <div class="pack-preview">
+                        <div class="pack-preview-stickers">
+                            ${pack.stickers.slice(0, 3).map(s => `<img src="${s.file_url}" alt="${s.emoji}">`).join('')}
+                        </div>
+                        <div class="pack-info">
+                            <h4>${UI.escapeHtml(pack.name)}</h4>
+                            <span>${pack.sticker_count} стикеров</span>
+                        </div>
+                        ${pack.is_installed
+                        ? '<button class="btn-secondary" style="padding: 4px 12px; font-size: 12px;" disabled>Установлен</button>'
+                        : `<button class="btn-primary" style="padding: 4px 12px; font-size: 12px;" onclick="app.installPack('${pack.id}')">Добавить</button>`
+                    }
+                    </div>
+                `).join('');
+            }
+
+            UI.showModal('modal-browse-packs');
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+    }
+
+    async installPack(packId) {
+        try {
+            await api.installStickerPack(packId);
+            UI.toast('Пак установлен!', 'success');
+            await this.showBrowsePacks();
+            await this.loadStickers();
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+    }
+
     getCurrentChat() {
         return this.chats.find(c => c.id === this.currentChatId);
     }
@@ -1012,6 +1278,59 @@ class MessengerApp {
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.15);
         } catch (e) { }
+    }
+    // ==================== STICKERS ====================
+
+    async getMyStickers() {
+        return await this.request('GET', '/stickers/packs');
+    }
+
+    async browseStickerPacks() {
+        return await this.request('GET', '/stickers/packs/browse');
+    }
+
+    async createStickerPack(name, description = '') {
+        return await this.request('POST', '/stickers/packs', { name, description });
+    }
+
+    async updateStickerPack(packId, data) {
+        return await this.request('PUT', `/stickers/packs/${packId}`, data);
+    }
+
+    async deleteStickerPack(packId) {
+        return await this.request('DELETE', `/stickers/packs/${packId}`);
+    }
+
+    async installStickerPack(packId) {
+        return await this.request('POST', `/stickers/packs/${packId}/install`);
+    }
+
+    async uninstallStickerPack(packId) {
+        return await this.request('DELETE', `/stickers/packs/${packId}/install`);
+    }
+
+    async uploadSticker(packId, file, emoji = '😀') {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const url = `${this.baseUrl}/stickers/packs/${packId}/stickers?emoji=${encodeURIComponent(emoji)}`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${this.token}` },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Ошибка загрузки стикера');
+        }
+
+        return await response.json();
+    }
+
+    async deleteSticker(stickerId) {
+        return await this.request('DELETE', `/stickers/stickers/${stickerId}`);
     }
 }
 

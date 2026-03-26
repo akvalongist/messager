@@ -7,7 +7,7 @@ import os
 
 from database import init_db
 from config import get_settings
-from routes import auth, chats, messages, files, ws
+from routes import auth, chats, messages, files, ws, stickers
 
 settings = get_settings()
 
