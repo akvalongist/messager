@@ -529,43 +529,38 @@ class MessengerApp {
 
     // ==================== SEND ====================
 
-    async sendMessage() {
-        const input = document.getElementById('message-input');
-        if (!input) return;
-
-        const content = input.value.trim();
-        if (!content || !this.currentChatId) return;
-
-        wsManager.sendMessage(this.currentChatId, content, {
-            replyToId: this.replyTo ? this.replyTo.id : null
-        });
-
-        const localMsg = {
-            id: 'local-' + Date.now(),
-            chat_id: this.currentChatId,
-            sender_id: this.currentUser.user_id,
-            sender_name: this.currentUser.display_name,
-            message_type: 'text',
-            content: content,
-            file_url: null,
-            file_name: null,
-            file_size: null,
-            reply_to_id: null,
-            is_edited: false,
-            is_deleted: false,
-            created_at: new Date().toISOString()
-        };
-
-        if (!this.messages[this.currentChatId]) {
-            this.messages[this.currentChatId] = [];
+    onNewMessage(msg) {
+        const chatId = msg.chat_id;
+        if (!this.messages[chatId]) {
+            this.messages[chatId] = [];
         }
-        this.messages[this.currentChatId].push(localMsg);
-        this.renderMessages(this.currentChatId);
 
-        input.value = '';
-        UI.autoResize(input);
-        this.cancelReply();
-        input.focus();
+        // Не добавляем дубликаты
+        const exists = this.messages[chatId].some(m => m.id === msg.id);
+        if (!exists) {
+            this.messages[chatId].push(msg);
+        }
+
+        // Рендерим если текущий чат
+        if (chatId === this.currentChatId) {
+            this.renderMessages(chatId);
+        }
+
+        // Обновляем превью в списке
+        const lastMsgEl = document.getElementById(`last-msg-${chatId}`);
+        const timeEl = document.getElementById(`chat-time-${chatId}`);
+        if (lastMsgEl) lastMsgEl.textContent = (msg.content || msg.file_name || '📎').substring(0, 40);
+        if (timeEl) timeEl.textContent = UI.formatTime(msg.created_at);
+
+        // Уведомление если не текущий чат и не своё сообщение
+        if (chatId !== this.currentChatId && msg.sender_id !== this.currentUser.user_id) {
+            UI.toast(`${msg.sender_name}: ${(msg.content || '📎').substring(0, 50)}`, 'info');
+            this.playNotificationSound();
+        }
+
+        // Скрываем typing
+        const typingEl = document.getElementById('typing-indicator');
+        if (typingEl) typingEl.classList.add('hidden');
     }
 
     // ==================== FILES ====================
