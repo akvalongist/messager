@@ -1,6 +1,3 @@
-/**
- * API клиент для мессенджера
- */
 class API {
     constructor() {
         this.baseUrl = '/api';
@@ -95,10 +92,6 @@ class API {
         });
     }
 
-    async joinByInvite(inviteCode) {
-        return await this.request('POST', `/chats/join/${inviteCode}`);
-    }
-
     // ==================== MESSAGES ====================
 
     async getMessages(chatId, limit = 50, before = null) {
@@ -135,7 +128,6 @@ class API {
 
         return await response.json();
     }
-    // ==================== GROUP MANAGEMENT ====================
 
     // ==================== GROUP MANAGEMENT ====================
 
