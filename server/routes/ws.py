@@ -203,11 +203,16 @@ async def handle_message(sender_id: str, data: dict, websocket: WebSocket):
         }
 
         # Отправляем ВСЕМ в чате включая отправителя
+               # Отправляем всем КРОМЕ отправителя
         member_ids = await get_chat_members(chat_id)
-        print(f"📤 Рассылка {len(member_ids)} участникам")
 
+        # Отправителю — с его сообщением (для подтверждения)
+        await manager.send_to_user(sender_id, msg_response)
+
+        # Остальным участникам
         for uid in member_ids:
-            await manager.send_to_user(uid, msg_response)
+            if uid != sender_id:
+                await manager.send_to_user(uid, msg_response)
 
     except Exception as e:
         print(f"❌ Ошибка сообщения: {e}")

@@ -529,6 +529,25 @@ class MessengerApp {
 
     // ==================== SEND ====================
 
+    async sendMessage() {
+        const input = document.getElementById('message-input');
+        if (!input) return;
+
+        const content = input.value.trim();
+        if (!content || !this.currentChatId) return;
+
+        // Просто отправляем — сервер сохранит и пришлёт обратно
+        wsManager.sendMessage(this.currentChatId, content, {
+            replyToId: this.replyTo ? this.replyTo.id : null
+        });
+
+        // Очищаем поле
+        input.value = '';
+        UI.autoResize(input);
+        this.cancelReply();
+        input.focus();
+    }
+
     onNewMessage(msg) {
         const chatId = msg.chat_id;
         if (!this.messages[chatId]) {
