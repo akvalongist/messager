@@ -1,6 +1,3 @@
-/**
- * XAM Messenger — Главное приложение
- */
 class MessengerApp {
     constructor() {
         this.currentUser = null;
@@ -9,6 +6,7 @@ class MessengerApp {
         this.messages = {};
         this.replyTo = null;
         this.typingTimer = null;
+        this.typingHideTimer = null;
 
         this.init();
     }
@@ -16,7 +14,6 @@ class MessengerApp {
     async init() {
         this.bindEvents();
 
-        // Проверяем авторизацию
         const savedUser = localStorage.getItem('user');
         const savedToken = localStorage.getItem('token');
 
@@ -34,27 +31,41 @@ class MessengerApp {
         }
     }
 
-    // ==================== EVENTS ====================
-
     bindEvents() {
-        // Auth
-        document.getElementById('login-form').addEventListener('submit', (e) => this.handleLogin(e));
-        document.getElementById('register-form').addEventListener('submit', (e) => this.handleRegister(e));
-        document.getElementById('show-register').addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('login-form').classList.remove('active');
-            document.getElementById('register-form').classList.add('active');
-        });
-        document.getElementById('show-login').addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('register-form').classList.remove('active');
-            document.getElementById('login-form').classList.add('active');
-        });
+        // Auth forms
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
 
-        // Sidebar
-        document.getElementById('btn-new-chat').addEventListener('click', () => UI.showModal('modal-new-chat'));
-        document.getElementById('btn-new-group').addEventListener('click', () => UI.showModal('modal-new-group'));
-        document.getElementById('btn-logout').addEventListener('click', () => this.logout());
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+        }
+        if (registerForm) {
+            registerForm.addEventListener('submit', (e) => this.handleRegister(e));
+        }
+
+        // Auth switch
+        const showRegister = document.getElementById('show-register');
+        const showLogin = document.getElementById('show-login');
+
+        if (showRegister) {
+            showRegister.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('login-form').classList.remove('active');
+                document.getElementById('register-form').classList.add('active');
+            });
+        }
+        if (showLogin) {
+            showLogin.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('register-form').classList.remove('active');
+                document.getElementById('login-form').classList.add('active');
+            });
+        }
+
+        // Sidebar buttons
+        this.safeClick('btn-new-chat', () => UI.showModal('modal-new-chat'));
+        this.safeClick('btn-new-group', () => UI.showModal('modal-new-group'));
+        this.safeClick('btn-logout', () => this.logout());
 
         // Modals
         document.querySelectorAll('.modal-close, .modal-cancel').forEach(btn => {
@@ -67,38 +78,48 @@ class MessengerApp {
         });
 
         // Create chat/group
-        document.getElementById('btn-create-direct').addEventListener('click', () => this.createDirectChat());
-        document.getElementById('btn-create-group').addEventListener('click', () => this.createGroup());
+        this.safeClick('btn-create-direct', () => this.createDirectChat());
+        this.safeClick('btn-create-group', () => this.createGroup());
 
         // Message input
         const input = document.getElementById('message-input');
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
-        input.addEventListener('input', () => {
-            UI.autoResize(input);
-            this.handleTyping();
-        });
+        if (input) {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+            input.addEventListener('input', () => {
+                UI.autoResize(input);
+                this.handleTyping();
+            });
+        }
 
-        document.getElementById('btn-send').addEventListener('click', () => this.sendMessage());
+        this.safeClick('btn-send', () => this.sendMessage());
 
         // File upload
-        document.getElementById('btn-attach').addEventListener('click', () => {
-            document.getElementById('file-input').click();
+        this.safeClick('btn-attach', () => {
+            const fileInput = document.getElementById('file-input');
+            if (fileInput) fileInput.click();
         });
-        document.getElementById('file-input').addEventListener('change', (e) => this.handleFileUpload(e));
+
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+        }
 
         // Reply cancel
-        document.getElementById('btn-cancel-reply').addEventListener('click', () => this.cancelReply());
+        this.safeClick('btn-cancel-reply', () => this.cancelReply());
 
         // Mobile back
-        document.getElementById('btn-back').addEventListener('click', () => this.showSidebar());
+        this.safeClick('btn-back', () => this.showSidebar());
 
         // Search
-        document.getElementById('search-chats').addEventListener('input', (e) => this.filterChats(e.target.value));
+        const searchInput = document.getElementById('search-chats');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => this.filterChats(e.target.value));
+        }
 
         // Context menu close
         document.addEventListener('click', () => {
@@ -110,8 +131,20 @@ class MessengerApp {
         wsManager.on('typing', (data) => this.onTyping(data));
         wsManager.on('read', (data) => this.onRead(data));
         wsManager.on('message_edited', (data) => this.onMessageEdited(data));
-        wsManager.on('connected', () => UI.toast('Подключено', 'success'));
-        wsManager.on('disconnected', () => UI.toast('Переподключение...', 'error'));
+        wsManager.on('connected', () => {
+            console.log('✅ WS подключён');
+        });
+        wsManager.on('disconnected', () => {
+            UI.toast('Переподключение...', 'error');
+        });
+    }
+
+    // Безопасный клик — не падает если элемент не найден
+    safeClick(id, callback) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('click', callback);
+        }
     }
 
     // ==================== AUTH ====================
@@ -163,28 +196,36 @@ class MessengerApp {
 
         document.getElementById('chat-screen').classList.remove('active');
         document.getElementById('auth-screen').classList.add('active');
-        UI.toast('Вы вышли из аккаунта', 'info');
+        UI.toast('Вы вышли', 'info');
     }
 
-    // ==================== MAIN SCREEN ====================
+    // ==================== MAIN ====================
+
     async enterChat() {
         document.getElementById('auth-screen').classList.remove('active');
         document.getElementById('chat-screen').classList.add('active');
 
         const displayName = this.currentUser.display_name || this.currentUser.username;
-        document.getElementById('my-display-name').textContent = displayName;
-        document.getElementById('my-avatar').textContent = UI.getInitials(displayName);
 
-        // Показываем ID в сайдбаре
+        const nameEl = document.getElementById('my-display-name');
+        if (nameEl) nameEl.textContent = displayName;
+
+        const avatarEl = document.getElementById('my-avatar');
+        if (avatarEl) avatarEl.textContent = UI.getInitials(displayName);
+
         const idEl = document.getElementById('my-user-id');
-        if (idEl) {
-            idEl.textContent = `ID: ${this.currentUser.user_id.substring(0, 8)}... 📋`;
-        }
+        if (idEl) idEl.textContent = `ID: ${this.currentUser.user_id.substring(0, 8)}... 📋`;
 
         wsManager.connect(api.token);
         await this.loadChats();
 
         UI.toast(`Привет, ${displayName}! 👋`, 'success');
+    }
+
+    copyMyId() {
+        const id = this.currentUser.user_id;
+        navigator.clipboard.writeText(id);
+        UI.toast('ID скопирован! Отправьте его собеседнику', 'success');
     }
 
     // ==================== CHATS ====================
@@ -201,6 +242,7 @@ class MessengerApp {
 
     renderChatList() {
         const container = document.getElementById('chat-list');
+        if (!container) return;
 
         if (this.chats.length === 0) {
             container.innerHTML = `
@@ -233,56 +275,70 @@ class MessengerApp {
     async selectChat(chatId) {
         this.currentChatId = chatId;
         const chat = this.chats.find(c => c.id === chatId);
-
         if (!chat) return;
 
-        // Обновляем UI
-        document.getElementById('no-chat-selected').classList.add('hidden');
-        document.getElementById('chat-header').classList.remove('hidden');
-        document.getElementById('messages-container').classList.remove('hidden');
-        document.getElementById('message-input-area').classList.remove('hidden');
+        // Показываем элементы чата
+        const noChat = document.getElementById('no-chat-selected');
+        const header = document.getElementById('chat-header');
+        const messagesContainer = document.getElementById('messages-container');
+        const inputArea = document.getElementById('message-input-area');
+
+        if (noChat) noChat.classList.add('hidden');
+        if (header) header.classList.remove('hidden');
+        if (messagesContainer) messagesContainer.classList.remove('hidden');
+        if (inputArea) inputArea.classList.remove('hidden');
 
         // Заголовок
-        document.getElementById('chat-name').textContent = chat.name || 'Чат';
-        document.getElementById('chat-avatar').textContent =
-            chat.chat_type === 'group' ? '👥' : UI.getInitials(chat.name);
-        document.getElementById('chat-avatar').style.background = UI.getAvatarColor(chat.name);
-        document.getElementById('chat-status').textContent =
-            chat.chat_type === 'group' ? `${chat.members_count} участников` : '';
+        const chatName = document.getElementById('chat-name');
+        const chatAvatar = document.getElementById('chat-avatar');
+        const chatStatus = document.getElementById('chat-status');
 
-        // Подсвечиваем активный чат
+        if (chatName) chatName.textContent = chat.name || 'Чат';
+        if (chatAvatar) {
+            chatAvatar.textContent = chat.chat_type === 'group' ? '👥' : UI.getInitials(chat.name);
+            chatAvatar.style.background = UI.getAvatarColor(chat.name);
+        }
+        if (chatStatus) {
+            chatStatus.textContent = chat.chat_type === 'group' ? `${chat.members_count} участников` : '';
+        }
+
+        // Подсвечиваем активный
         document.querySelectorAll('.chat-item').forEach(item => {
             item.classList.toggle('active', item.dataset.chatId === chatId);
         });
 
-        // Загружаем сообщения
         await this.loadMessages(chatId);
 
-        // Фокус на поле ввода
-        document.getElementById('message-input').focus();
+        const input = document.getElementById('message-input');
+        if (input) input.focus();
 
-        // Мобилка: скрываем сайдбар
         if (window.innerWidth <= 768) {
-            document.getElementById('sidebar').classList.add('hidden-mobile');
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.classList.add('hidden-mobile');
         }
     }
 
     showSidebar() {
-        document.getElementById('sidebar').classList.remove('hidden-mobile');
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.remove('hidden-mobile');
     }
 
     filterChats(query) {
         const items = document.querySelectorAll('.chat-item');
         const q = query.toLowerCase();
-
         items.forEach(item => {
-            const name = item.querySelector('.chat-item-name').textContent.toLowerCase();
-            item.style.display = name.includes(q) ? '' : 'none';
+            const name = item.querySelector('.chat-item-name');
+            if (name) {
+                item.style.display = name.textContent.toLowerCase().includes(q) ? '' : 'none';
+            }
         });
     }
 
     async createDirectChat() {
-        const userId = document.getElementById('new-chat-user-id').value.trim();
+        const input = document.getElementById('new-chat-user-id');
+        if (!input) return;
+
+        const userId = input.value.trim();
         if (!userId) {
             UI.toast('Введите ID пользователя', 'error');
             return;
@@ -291,7 +347,7 @@ class MessengerApp {
         try {
             const chat = await api.createDirectChat(userId);
             UI.hideAllModals();
-            document.getElementById('new-chat-user-id').value = '';
+            input.value = '';
             await this.loadChats();
             await this.selectChat(chat.id);
             UI.toast('Чат создан!', 'success');
@@ -301,8 +357,12 @@ class MessengerApp {
     }
 
     async createGroup() {
-        const name = document.getElementById('group-name').value.trim();
-        const description = document.getElementById('group-description').value.trim();
+        const nameInput = document.getElementById('group-name');
+        const descInput = document.getElementById('group-description');
+        if (!nameInput) return;
+
+        const name = nameInput.value.trim();
+        const description = descInput ? descInput.value.trim() : '';
 
         if (!name) {
             UI.toast('Введите название группы', 'error');
@@ -312,8 +372,8 @@ class MessengerApp {
         try {
             const chat = await api.createGroup(name, description);
             UI.hideAllModals();
-            document.getElementById('group-name').value = '';
-            document.getElementById('group-description').value = '';
+            nameInput.value = '';
+            if (descInput) descInput.value = '';
             await this.loadChats();
             await this.selectChat(chat.id);
             UI.toast(`Группа "${name}" создана!`, 'success');
@@ -336,6 +396,8 @@ class MessengerApp {
 
     renderMessages(chatId) {
         const container = document.getElementById('messages-list');
+        if (!container) return;
+
         const messages = this.messages[chatId] || [];
 
         if (messages.length === 0) {
@@ -352,37 +414,18 @@ class MessengerApp {
         let lastDate = '';
 
         messages.forEach(msg => {
-            // Разделитель дат
             const msgDate = new Date(msg.created_at).toDateString();
             if (msgDate !== lastDate) {
                 html += `<div class="date-separator">${UI.formatDateSeparator(msg.created_at)}</div>`;
                 lastDate = msgDate;
             }
-
             html += this.renderMessage(msg);
         });
 
         container.innerHTML = html;
 
-        // Скролл вниз
         const messagesContainer = document.getElementById('messages-container');
-        UI.scrollToBottom(messagesContainer);
-
-        // Обновляем последнее сообщение в списке чатов
-        if (messages.length > 0) {
-            const lastMsg = messages[messages.length - 1];
-            const lastMsgEl = document.getElementById(`last-msg-${chatId}`);
-            const timeEl = document.getElementById(`chat-time-${chatId}`);
-
-            if (lastMsgEl) {
-                const preview = lastMsg.is_deleted ? 'Сообщение удалено' :
-                    (lastMsg.content || lastMsg.file_name || '📎 Файл');
-                lastMsgEl.textContent = preview.substring(0, 40);
-            }
-            if (timeEl) {
-                timeEl.textContent = UI.formatTime(lastMsg.created_at);
-            }
-        }
+        if (messagesContainer) UI.scrollToBottom(messagesContainer);
     }
 
     renderMessage(msg) {
@@ -401,22 +444,12 @@ class MessengerApp {
 
         let contentHtml = '';
 
-        // Reply
-        if (msg.reply_to_id) {
-            const replyMsg = (this.messages[this.currentChatId] || []).find(m => m.id === msg.reply_to_id);
-            if (replyMsg) {
-                contentHtml += `
-                    <div class="message-reply">
-                        <div class="message-reply-author">${UI.escapeHtml(replyMsg.sender_name || 'Unknown')}</div>
-                        <div class="message-reply-text">${UI.escapeHtml((replyMsg.content || '').substring(0, 60))}</div>
-                    </div>
-                `;
+        // Sender name for groups
+        if (!isOwn && msg.sender_name) {
+            const chat = this.getCurrentChat();
+            if (chat && chat.chat_type === 'group') {
+                contentHtml += `<div class="message-sender">${UI.escapeHtml(msg.sender_name)}</div>`;
             }
-        }
-
-        // Sender name (для групп)
-        if (!isOwn && msg.sender_name && this.getCurrentChat()?.chat_type === 'group') {
-            contentHtml += `<div class="message-sender">${UI.escapeHtml(msg.sender_name)}</div>`;
         }
 
         // Content
@@ -427,7 +460,7 @@ class MessengerApp {
         // File
         if (msg.file_url) {
             if (msg.mime_type && msg.mime_type.startsWith('image/')) {
-                contentHtml += `<img class="message-image" src="${msg.file_url}" alt="${msg.file_name || 'image'}" loading="lazy">`;
+                contentHtml += `<img class="message-image" src="${msg.file_url}" alt="image" loading="lazy">`;
             } else {
                 const icon = UI.getFileIcon(msg.mime_type);
                 const size = UI.formatFileSize(msg.file_size);
@@ -464,47 +497,59 @@ class MessengerApp {
     formatMessageText(text) {
         if (!text) return '';
         let html = UI.escapeHtml(text);
-
-        // Ссылки
         html = html.replace(
             /(https?:\/\/[^\s<]+)/g,
             '<a href="$1" target="_blank" style="color: var(--accent-light)">$1</a>'
         );
-
-        // **жирный**
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-        // *курсив*
         html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-
-        // `код`
         html = html.replace(/`(.*?)`/g, '<code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">$1</code>');
-
         return html;
     }
 
-    // ==================== SEND MESSAGE ====================
+    // ==================== SEND ====================
 
     async sendMessage() {
         const input = document.getElementById('message-input');
+        if (!input) return;
+
         const content = input.value.trim();
+        if (!content || !this.currentChatId) return;
 
-        if (!content && !this.pendingFile) return;
-        if (!this.currentChatId) return;
-
-        // Отправляем через WebSocket
         wsManager.sendMessage(this.currentChatId, content, {
             replyToId: this.replyTo?.id || null
         });
 
-        // Очищаем
+        // Добавляем сообщение локально сразу (оптимистичное обновление)
+        const localMsg = {
+            id: 'local-' + Date.now(),
+            chat_id: this.currentChatId,
+            sender_id: this.currentUser.user_id,
+            sender_name: this.currentUser.display_name,
+            message_type: 'text',
+            content: content,
+            file_url: null,
+            file_name: null,
+            file_size: null,
+            reply_to_id: this.replyTo?.id || null,
+            is_edited: false,
+            is_deleted: false,
+            created_at: new Date().toISOString()
+        };
+
+        if (!this.messages[this.currentChatId]) {
+            this.messages[this.currentChatId] = [];
+        }
+        this.messages[this.currentChatId].push(localMsg);
+        this.renderMessages(this.currentChatId);
+
         input.value = '';
         UI.autoResize(input);
         this.cancelReply();
         input.focus();
     }
 
-    // ==================== FILE UPLOAD ====================
+    // ==================== FILES ====================
 
     async handleFileUpload(e) {
         const files = e.target.files;
@@ -515,7 +560,6 @@ class MessengerApp {
                 UI.toast(`Загрузка ${file.name}...`, 'info');
                 const result = await api.uploadFile(file, this.currentChatId);
 
-                // Отправляем сообщение с файлом
                 wsManager.sendMessage(this.currentChatId, '', {
                     messageType: file.type.startsWith('image/') ? 'image' : 'file',
                     fileUrl: result.url,
@@ -529,8 +573,6 @@ class MessengerApp {
                 UI.toast(`Ошибка: ${error.message}`, 'error');
             }
         }
-
-        // Очищаем input
         e.target.value = '';
     }
 
@@ -542,31 +584,34 @@ class MessengerApp {
 
         this.replyTo = msg;
         const preview = document.getElementById('reply-preview');
-        preview.classList.remove('hidden');
-        preview.querySelector('.reply-author').textContent = msg.sender_name || 'Unknown';
-        preview.querySelector('.reply-text').textContent = (msg.content || '📎 Файл').substring(0, 60);
+        if (preview) {
+            preview.classList.remove('hidden');
+            const author = preview.querySelector('.reply-author');
+            const text = preview.querySelector('.reply-text');
+            if (author) author.textContent = msg.sender_name || 'Unknown';
+            if (text) text.textContent = (msg.content || '📎 Файл').substring(0, 60);
+        }
 
-        document.getElementById('message-input').focus();
+        const input = document.getElementById('message-input');
+        if (input) input.focus();
     }
 
     cancelReply() {
         this.replyTo = null;
-        document.getElementById('reply-preview').classList.add('hidden');
+        const preview = document.getElementById('reply-preview');
+        if (preview) preview.classList.add('hidden');
     }
 
     // ==================== CONTEXT MENU ====================
 
     showMessageMenu(event, messageId) {
         event.preventDefault();
-
-        // Удаляем старые меню
         document.querySelectorAll('.context-menu').forEach(m => m.remove());
 
         const msg = (this.messages[this.currentChatId] || []).find(m => m.id === messageId);
         if (!msg || msg.is_deleted) return;
 
         const isOwn = msg.sender_id === this.currentUser.user_id;
-
         const menu = document.createElement('div');
         menu.className = 'context-menu';
 
@@ -576,14 +621,10 @@ class MessengerApp {
         `;
 
         if (isOwn) {
-            items += `
-                <div class="context-menu-item danger" onclick="app.deleteMessage('${messageId}')">🗑️ Удалить</div>
-            `;
+            items += `<div class="context-menu-item danger" onclick="app.deleteMessage('${messageId}')">🗑️ Удалить</div>`;
         }
 
         menu.innerHTML = items;
-
-        // Позиционирование
         menu.style.left = `${Math.min(event.clientX, window.innerWidth - 180)}px`;
         menu.style.top = `${Math.min(event.clientY, window.innerHeight - 150)}px`;
 
@@ -622,53 +663,49 @@ class MessengerApp {
 
     handleTyping() {
         if (!this.currentChatId) return;
-
         if (this.typingTimer) clearTimeout(this.typingTimer);
-
         wsManager.sendTyping(this.currentChatId);
-
-        this.typingTimer = setTimeout(() => {
-            this.typingTimer = null;
-        }, 3000);
+        this.typingTimer = setTimeout(() => { this.typingTimer = null; }, 3000);
     }
 
-    // ==================== WEBSOCKET HANDLERS ====================
+    // ==================== WS HANDLERS ====================
 
     onNewMessage(msg) {
         const chatId = msg.chat_id;
 
-        // Добавляем в массив сообщений
         if (!this.messages[chatId]) {
             this.messages[chatId] = [];
         }
-        this.messages[chatId].push(msg);
 
-        // Если это текущий чат — рендерим
+        // Не добавляем дубликаты
+        const exists = this.messages[chatId].some(m => m.id === msg.id);
+        if (!exists) {
+            this.messages[chatId].push(msg);
+        }
+
         if (chatId === this.currentChatId) {
             this.renderMessages(chatId);
         }
 
-        // Обновляем список чатов
+        // Обновляем превью в списке чатов
         const lastMsgEl = document.getElementById(`last-msg-${chatId}`);
         const timeEl = document.getElementById(`chat-time-${chatId}`);
-
         if (lastMsgEl) {
-            lastMsgEl.textContent = (msg.content || msg.file_name || '📎 Файл').substring(0, 40);
+            lastMsgEl.textContent = (msg.content || msg.file_name || '📎').substring(0, 40);
         }
         if (timeEl) {
             timeEl.textContent = UI.formatTime(msg.created_at);
         }
 
-        // Уведомление если не текущий чат
+        // Уведомление
         if (chatId !== this.currentChatId) {
-            UI.toast(`${msg.sender_name}: ${(msg.content || '📎 Файл').substring(0, 50)}`, 'info');
-
-            // Звук уведомления
+            UI.toast(`${msg.sender_name}: ${(msg.content || '📎').substring(0, 50)}`, 'info');
             this.playNotificationSound();
         }
 
         // Скрываем typing
-        document.getElementById('typing-indicator').classList.add('hidden');
+        const typingEl = document.getElementById('typing-indicator');
+        if (typingEl) typingEl.classList.add('hidden');
     }
 
     onTyping(data) {
@@ -676,17 +713,16 @@ class MessengerApp {
         if (data.user_id === this.currentUser.user_id) return;
 
         const indicator = document.getElementById('typing-indicator');
-        indicator.classList.remove('hidden');
-
-        // Скрываем через 3 секунды
-        clearTimeout(this.typingHideTimer);
-        this.typingHideTimer = setTimeout(() => {
-            indicator.classList.add('hidden');
-        }, 3000);
+        if (indicator) {
+            indicator.classList.remove('hidden');
+            clearTimeout(this.typingHideTimer);
+            this.typingHideTimer = setTimeout(() => {
+                indicator.classList.add('hidden');
+            }, 3000);
+        }
     }
 
     onRead(data) {
-        // Можно обновить галочки сообщений
         console.log('Read:', data);
     }
 
@@ -712,27 +748,15 @@ class MessengerApp {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
-
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
-
             oscillator.frequency.value = 800;
             oscillator.type = 'sine';
             gainNode.gain.value = 0.1;
-
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.15);
-        } catch (e) {
-            // Ignore audio errors
-        }
-    }
-    copyMyId() {
-        const id = this.currentUser.user_id;
-        navigator.clipboard.writeText(id);
-        UI.toast('ID скопирован! Отправьте его собеседнику', 'success');
+        } catch (e) { }
     }
 }
 
-
-// ==================== ЗАПУСК ====================
 const app = new MessengerApp();

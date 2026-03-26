@@ -7,7 +7,7 @@ import os
 
 from database import init_db
 from config import get_settings
-from routes import auth, chats, messages, files, ws
+from routes import auth, chats, messages, files, ws  # ← ДОБАВЛЕН ws
 
 settings = get_settings()
 
@@ -41,18 +41,17 @@ app.add_middleware(
 # Загруженные файлы
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# Статика (CSS, JS)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # REST маршруты
 app.include_router(auth.router, prefix="/api")
 app.include_router(chats.router, prefix="/api")
 app.include_router(messages.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
 
-# WebSocket
+# WebSocket — ЭТО БЫЛО ПРОПУЩЕНО!
 app.include_router(ws.router)
-
-# Статика (CSS, JS)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 
 # Главная страница
 @app.get("/")

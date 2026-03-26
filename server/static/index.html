@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XAM Messenger</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
     <!-- ==================== ЭКРАН АВТОРИЗАЦИИ ==================== -->
     <div id="auth-screen" class="screen active">
         <div class="auth-container">
@@ -18,7 +18,6 @@
                 <p class="auth-subtitle">Безопасный мессенджер</p>
             </div>
 
-            <!-- Форма входа -->
             <form id="login-form" class="auth-form active">
                 <div class="form-group">
                     <label>Имя пользователя</label>
@@ -34,7 +33,6 @@
                 </p>
             </form>
 
-            <!-- Форма регистрации -->
             <form id="register-form" class="auth-form">
                 <div class="form-group">
                     <label>Имя пользователя</label>
@@ -62,29 +60,45 @@
         </div>
     </div>
 
-    <!-- ==================== ГЛАВНЫЙ ЭКРАН ЧАТА ==================== -->
+    <!-- ==================== ГЛАВНЫЙ ЭКРАН ==================== -->
     <div id="chat-screen" class="screen">
+
         <!-- Сайдбар -->
-        <div class="sidebar-header">
-            <div class="user-info">
-                <div class="avatar small" id="my-avatar">U</div>
-                <div>
-                    <span id="my-display-name">User</span>
-                    <div id="my-user-id" style="font-size: 10px; color: #6b6b80; cursor: pointer; margin-top: 2px;"
-                         onclick="app.copyMyId()" title="Нажми чтобы скопировать ID">
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="user-info">
+                    <div class="avatar small" id="my-avatar">U</div>
+                    <div>
+                        <span id="my-display-name">User</span>
+                        <div id="my-user-id"
+                             style="font-size: 10px; color: #6b6b80; cursor: pointer; margin-top: 2px;"
+                             onclick="app.copyMyId()"
+                             title="Нажми чтобы скопировать ID">
+                        </div>
                     </div>
                 </div>
+                <div class="sidebar-actions">
+                    <button class="icon-btn" id="btn-new-chat" title="Новый чат">✏️</button>
+                    <button class="icon-btn" id="btn-new-group" title="Новая группа">👥</button>
+                    <button class="icon-btn" id="btn-logout" title="Выйти">🚪</button>
+                </div>
             </div>
-            <div class="sidebar-actions">
-                <button class="icon-btn" id="btn-new-chat" title="Новый чат">✏️</button>
-                <button class="icon-btn" id="btn-new-group" title="Новая группа">👥</button>
-                <button class="icon-btn" id="btn-logout" title="Выйти">🚪</button>
+
+            <div class="search-bar">
+                <input type="text" id="search-chats" placeholder="🔍 Поиск чатов...">
             </div>
-        </div>
+
+            <div id="chat-list" class="chat-list">
+                <div class="empty-state">
+                    <p>Нет чатов</p>
+                    <p class="hint">Нажмите ✏️ чтобы начать</p>
+                </div>
+            </div>
+        </aside>
 
         <!-- Область чата -->
         <main id="chat-area" class="chat-area">
-            <!-- Пустое состояние -->
+
             <div id="no-chat-selected" class="no-chat-selected">
                 <div class="welcome-message">
                     <div class="welcome-icon">💬</div>
@@ -93,14 +107,13 @@
                 </div>
             </div>
 
-            <!-- Заголовок чата -->
             <div id="chat-header" class="chat-header hidden">
                 <button class="icon-btn mobile-back" id="btn-back">←</button>
                 <div class="chat-header-info">
                     <div class="avatar small" id="chat-avatar">C</div>
                     <div>
                         <h3 id="chat-name">Имя чата</h3>
-                        <span id="chat-status" class="chat-status">онлайн</span>
+                        <span id="chat-status" class="chat-status"></span>
                     </div>
                 </div>
                 <div class="chat-header-actions">
@@ -109,7 +122,6 @@
                 </div>
             </div>
 
-            <!-- Сообщения -->
             <div id="messages-container" class="messages-container hidden">
                 <div id="messages-list" class="messages-list"></div>
                 <div id="typing-indicator" class="typing-indicator hidden">
@@ -120,7 +132,6 @@
                 </div>
             </div>
 
-            <!-- Поле ввода -->
             <div id="message-input-area" class="message-input-area hidden">
                 <div id="reply-preview" class="reply-preview hidden">
                     <div class="reply-content">
@@ -142,9 +153,8 @@
         </main>
     </div>
 
-    <!-- ==================== МОДАЛЬНЫЕ ОКНА ==================== -->
+    <!-- ==================== МОДАЛКИ ==================== -->
 
-    <!-- Новый чат -->
     <div id="modal-new-chat" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -156,7 +166,7 @@
                     <label>ID пользователя</label>
                     <input type="text" id="new-chat-user-id" placeholder="Вставьте ID пользователя">
                 </div>
-                <p class="hint">Узнайте ID в профиле собеседника</p>
+                <p class="hint">Нажмите на свой ID в сайдбаре чтобы скопировать</p>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary modal-cancel">Отмена</button>
@@ -165,7 +175,6 @@
         </div>
     </div>
 
-    <!-- Новая группа -->
     <div id="modal-new-group" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -189,7 +198,6 @@
         </div>
     </div>
 
-    <!-- Уведомления -->
     <div id="toast-container" class="toast-container"></div>
 
     <script src="/static/js/api.js"></script>
