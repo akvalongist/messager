@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- ЧАСТИЦЫ -->
+    <canvas id="particle-canvas"></canvas>
 
     <!-- ==================== ЭКРАН АВТОРИЗАЦИИ ==================== -->
     <div id="auth-screen" class="screen active">
@@ -65,23 +67,35 @@
 
         <!-- Сайдбар -->
         <aside id="sidebar" class="sidebar">
+            <!-- Меню профиля -->
+            <div id="profile-menu" class="profile-menu hidden">
+                <div class="profile-menu-header">
+                    <div class="avatar" id="profile-avatar" style="width: 48px; height: 48px;">U</div>
+                    <div>
+                        <div class="profile-menu-name" id="profile-name">User</div>
+                        <div class="profile-menu-id" id="profile-id" onclick="app.copyMyId()">Нажми чтобы скопировать ID</div>
+                    </div>
+                </div>
+                <div class="profile-menu-item" onclick="app.copyMyId()">
+                    📋 Скопировать ID
+                </div>
+                <div class="profile-menu-item" onclick="UI.showModal('modal-theme-settings')">
+                    🎨 Настройки темы
+                </div>
+                <div class="profile-menu-item danger" onclick="app.logout()">
+                    🚪 Выйти
+                </div>
+            </div>
             <div class="sidebar-header">
-                <div class="user-info">
+                <div class="user-info" onclick="app.toggleProfileMenu()">
                     <div class="avatar small" id="my-avatar">U</div>
                     <div>
                         <span id="my-display-name">User</span>
                         <div id="my-user-id"
-                             style="font-size: 10px; color: #6b6b80; cursor: pointer; margin-top: 2px;"
-                             onclick="app.copyMyId()"
+                             style="font-size: 10px; color: rgba(255,255,255,0.35); cursor: pointer; margin-top: 2px;"
                              title="Нажми чтобы скопировать ID">
                         </div>
                     </div>
-                </div>
-                <div class="sidebar-actions">
-                    <button class="icon-btn" id="btn-new-chat" title="Новый чат">✏️</button>
-                    <button class="icon-btn" id="btn-new-group" title="Новая группа">👥</button>
-                    <button class="icon-btn" id="btn-join-invite" title="Присоединиться по ссылке">🔗</button>
-                    <button class="icon-btn" id="btn-logout" title="Выйти">🚪</button>
                 </div>
             </div>
 
@@ -348,11 +362,61 @@
         </div>
     </div>
 
+    <!-- Настройки темы -->
+    <div id="modal-theme-settings" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>🎨 Настройки темы</h3>
+                <button class="icon-btn modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Цвет темы</label>
+                    <input type="range" id="theme-hue" min="0" max="360" value="260"
+                           style="width: 100%; accent-color: var(--accent);"
+                           oninput="app.updateTheme()">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+                        <span>🔴</span><span>🟠</span><span>🟡</span><span>🟢</span><span>🔵</span><span>🟣</span><span>🔴</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Прозрачность стекла</label>
+                    <input type="range" id="theme-opacity" min="5" max="40" value="15"
+                           style="width: 100%; accent-color: var(--accent);"
+                           oninput="app.updateTheme()">
+                </div>
+                <div class="form-group">
+                    <label>Размытие</label>
+                    <input type="range" id="theme-blur" min="5" max="40" value="20"
+                           style="width: 100%; accent-color: var(--accent);"
+                           oninput="app.updateTheme()">
+                </div>
+                <div class="form-group">
+                    <label>Частицы</label>
+                    <input type="range" id="theme-particles" min="20" max="150" value="80"
+                           style="width: 100%; accent-color: var(--accent);"
+                           oninput="app.updateTheme()">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="app.resetTheme()">Сбросить</button>
+                <button class="btn-primary modal-cancel">Готово</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toast-container" class="toast-container"></div>
 
     <script src="/static/js/api.js"></script>
     <script src="/static/js/websocket.js"></script>
     <script src="/static/js/ui.js"></script>
     <script src="/static/js/app.js"></script>
+
+    <script src="/static/js/particles.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/websocket.js"></script>
+    <script src="/static/js/ui.js"></script>
+    <script src="/static/js/app.js"></script>
+
 </body>
 </html>

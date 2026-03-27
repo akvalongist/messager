@@ -13,6 +13,7 @@ class MessengerApp {
 
     async init() {
         this.bindEvents();
+        this.loadTheme();
 
         const savedUser = localStorage.getItem('user');
         const savedToken = localStorage.getItem('token');
@@ -1259,6 +1260,97 @@ class MessengerApp {
         } catch (error) {
             UI.toast(error.message, 'error');
         }
+    }
+
+    // ==================== PROFILE MENU ====================
+
+    toggleProfileMenu() {
+        const menu = document.getElementById('profile-menu');
+        if (!menu) return;
+
+        if (menu.classList.contains('hidden')) {
+            // Обновляем данные
+            const name = this.currentUser.display_name || this.currentUser.username;
+            const nameEl = document.getElementById('profile-name');
+            const idEl = document.getElementById('profile-id');
+            const avatarEl = document.getElementById('profile-avatar');
+
+            if (nameEl) nameEl.textContent = name;
+            if (idEl) idEl.textContent = `ID: ${this.currentUser.user_id}`;
+            if (avatarEl) avatarEl.textContent = UI.getInitials(name);
+
+            menu.classList.remove('hidden');
+
+            // Закрываем по клику вне
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu(e) {
+                    if (!menu.contains(e.target) && !e.target.closest('.user-info')) {
+                        menu.classList.add('hidden');
+                        document.removeEventListener('click', closeMenu);
+                    }
+                });
+            }, 10);
+        } else {
+            menu.classList.add('hidden');
+        }
+    }
+
+    // ==================== THEME SETTINGS ====================
+
+    updateTheme() {
+        const hue = document.getElementById('theme-hue')?.value || 260;
+        const opacity = document.getElementById('theme-opacity')?.value || 15;
+        const blur = document.getElementById('theme-blur')?.value || 20;
+        const particles = document.getElementById('theme-particles')?.value || 80;
+
+        document.documentElement.style.setProperty('--theme-hue', hue);
+        document.documentElement.style.setProperty('--glass-opacity', (opacity / 100).toFixed(2));
+        document.documentElement.style.setProperty('--glass-blur', blur + 'px');
+
+        // Сохраняем
+        localStorage.setItem('theme', JSON.stringify({ hue, opacity, blur, particles }));
+    }
+
+    loadTheme() {
+        const saved = localStorage.getItem('theme');
+        if (saved) {
+            try {
+                const theme = JSON.parse(saved);
+                document.documentElement.style.setProperty('--theme-hue', theme.hue);
+                document.documentElement.style.setProperty('--glass-opacity', (theme.opacity / 100).toFixed(2));
+                document.documentElement.style.setProperty('--glass-blur', theme.blur + 'px');
+
+                // Обновляем слайдеры
+                const hueEl = document.getElementById('theme-hue');
+                const opacityEl = document.getElementById('theme-opacity');
+                const blurEl = document.getElementById('theme-blur');
+                const particlesEl = document.getElementById('theme-particles');
+
+                if (hueEl) hueEl.value = theme.hue;
+                if (opacityEl) opacityEl.value = theme.opacity;
+                if (blurEl) blurEl.value = theme.blur;
+                if (particlesEl) particlesEl.value = theme.particles;
+            } catch (e) { }
+        }
+    }
+
+    resetTheme() {
+        localStorage.removeItem('theme');
+        document.documentElement.style.setProperty('--theme-hue', '260');
+        document.documentElement.style.setProperty('--glass-opacity', '0.15');
+        document.documentElement.style.setProperty('--glass-blur', '20px');
+
+        const hueEl = document.getElementById('theme-hue');
+        const opacityEl = document.getElementById('theme-opacity');
+        const blurEl = document.getElementById('theme-blur');
+        const particlesEl = document.getElementById('theme-particles');
+
+        if (hueEl) hueEl.value = 260;
+        if (opacityEl) opacityEl.value = 15;
+        if (blurEl) blurEl.value = 20;
+        if (particlesEl) particlesEl.value = 80;
+
+        UI.toast('Тема сброшена', 'info');
     }
 
     getCurrentChat() {
