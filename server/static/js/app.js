@@ -72,6 +72,7 @@ class MessengerApp {
             const panel = document.getElementById('sticker-panel');
             if (panel) panel.classList.add('hidden');
         });
+        this.safeClick('btn-join-invite', () => UI.showModal('modal-join-invite'));
 
         // СТИКЕРЫ - Модалки
         this.safeClick('btn-submit-pack', () => this.createPack());

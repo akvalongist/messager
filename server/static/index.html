@@ -67,25 +67,6 @@
 
         <!-- Сайдбар -->
         <aside id="sidebar" class="sidebar">
-            <!-- Меню профиля -->
-            <div id="profile-menu" class="profile-menu hidden">
-                <div class="profile-menu-header">
-                    <div class="avatar" id="profile-avatar" style="width: 48px; height: 48px;">U</div>
-                    <div>
-                        <div class="profile-menu-name" id="profile-name">User</div>
-                        <div class="profile-menu-id" id="profile-id" onclick="app.copyMyId()">Нажми чтобы скопировать ID</div>
-                    </div>
-                </div>
-                <div class="profile-menu-item" onclick="app.copyMyId()">
-                    📋 Скопировать ID
-                </div>
-                <div class="profile-menu-item" onclick="UI.showModal('modal-theme-settings')">
-                    🎨 Настройки темы
-                </div>
-                <div class="profile-menu-item danger" onclick="app.logout()">
-                    🚪 Выйти
-                </div>
-            </div>
             <div class="sidebar-header">
                 <div class="user-info" onclick="app.toggleProfileMenu()">
                     <div class="avatar small" id="my-avatar">U</div>
@@ -101,10 +82,39 @@
                     <button class="icon-btn" id="btn-new-chat" title="Новый чат">✏️</button>
                     <button class="icon-btn" id="btn-new-group" title="Новая группа">👥</button>
                     <button class="icon-btn" id="btn-join-invite" title="Присоединиться">🔗</button>
-                    <button class="icon-btn" id="btn-logout" title="Выйти">🚪</button>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="search-chats" placeholder="🔍 Поиск чатов...">
+            </div>
+
+            <div id="chat-list" class="chat-list">
+                <div class="empty-state">
+                    <p>Нет чатов</p>
+                    <p class="hint">Нажмите ✏️ чтобы начать</p>
                 </div>
             </div>
         </aside>
+        <!-- Меню профиля -->
+        <div id="profile-menu" class="profile-menu hidden">
+            <div class="profile-menu-header">
+                <div class="avatar" id="profile-avatar" style="width: 48px; height: 48px;">U</div>
+                <div>
+                    <div class="profile-menu-name" id="profile-name">User</div>
+                    <div class="profile-menu-id" id="profile-id" onclick="app.copyMyId()">Нажми чтобы скопировать ID</div>
+                </div>
+            </div>
+            <div class="profile-menu-item" onclick="app.copyMyId()">
+                📋 Скопировать ID
+            </div>
+            <div class="profile-menu-item" onclick="UI.showModal('modal-theme-settings')">
+                🎨 Настройки темы
+            </div>
+            <div class="profile-menu-item danger" onclick="app.logout()">
+                🚪 Выйти
+            </div>
+        </div>
 
         <!-- Область чата -->
         <main id="chat-area" class="chat-area">
