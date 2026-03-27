@@ -44,6 +44,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(chats.router, prefix="/api")
 app.include_router(messages.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
+app.include_router(stickers.router, prefix="/api")
 
 
 # 3. Главная страница — ПЕРЕД mount

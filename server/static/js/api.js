@@ -150,6 +150,60 @@ class API {
     async joinByInvite(inviteCode) {
         return await this.request('POST', `/chats/join/${inviteCode}`);
     }
+
+    // ==================== STICKERS ====================
+
+    async getMyStickers() {
+        return await this.request('GET', '/stickers/packs');
+    }
+
+    async browseStickerPacks() {
+        return await this.request('GET', '/stickers/packs/browse');
+    }
+
+    async createStickerPack(name, description = '') {
+        return await this.request('POST', '/stickers/packs', { name, description });
+    }
+
+    async updateStickerPack(packId, data) {
+        return await this.request('PUT', `/stickers/packs/${packId}`, data);
+    }
+
+    async deleteStickerPack(packId) {
+        return await this.request('DELETE', `/stickers/packs/${packId}`);
+    }
+
+    async installStickerPack(packId) {
+        return await this.request('POST', `/stickers/packs/${packId}/install`);
+    }
+
+    async uninstallStickerPack(packId) {
+        return await this.request('DELETE', `/stickers/packs/${packId}/install`);
+    }
+
+    async uploadSticker(packId, file, emoji = '😀') {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const url = `${this.baseUrl}/stickers/packs/${packId}/stickers?emoji=${encodeURIComponent(emoji)}`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${this.token}` },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Ошибка загрузки стикера');
+        }
+
+        return await response.json();
+    }
+
+    async deleteSticker(stickerId) {
+        return await this.request('DELETE', `/stickers/stickers/${stickerId}`);
+    }
 }
 
 const api = new API();
