@@ -127,6 +127,12 @@ class MessengerApp {
             document.querySelectorAll('.context-menu').forEach(m => m.remove());
         });
 
+        // Аватарка
+        const avatarInput = document.getElementById('avatar-input');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', (e) => this.handleAvatarUpload(e));
+        }
+
         wsManager.on('new_message', (msg) => this.onNewMessage(msg));
         wsManager.on('typing', (data) => this.onTyping(data));
         wsManager.on('read', (data) => this.onRead(data));
@@ -207,6 +213,8 @@ class MessengerApp {
 
         const idEl = document.getElementById('my-user-id');
         if (idEl) idEl.textContent = `ID: ${this.currentUser.user_id.substring(0, 8)}... 📋`;
+
+        this.updateMyAvatars();
 
         wsManager.connect(api.token);
         await this.loadChats();
@@ -298,22 +306,26 @@ class MessengerApp {
             return;
         }
 
-        container.innerHTML = this.chats.map(chat => `
-            <div class="chat-item ${chat.id === this.currentChatId ? 'active' : ''}"
-                 data-chat-id="${chat.id}"
-                 onclick="app.selectChat('${chat.id}')">
-                <div class="avatar" style="background: ${UI.getAvatarColor(chat.name)}">
-                    ${chat.chat_type === 'group' ? '👥' : UI.getInitials(chat.name)}
+        container.innerHTML = this.chats.map(chat => {
+            const avatarHtml = chat.avatar_url
+                ? `<div class="avatar-container"><div class="avatar" style="background: ${UI.getAvatarColor(chat.name)}">${chat.chat_type === 'group' ? '👥' : UI.getInitials(chat.name)}</div><img class="avatar-img" src="${chat.avatar_url}" alt=""></div>`
+                : `<div class="avatar" style="background: ${UI.getAvatarColor(chat.name)}">${chat.chat_type === 'group' ? '👥' : UI.getInitials(chat.name)}</div>`;
+
+            return `
+                <div class="chat-item ${chat.id === this.currentChatId ? 'active' : ''}"
+                     data-chat-id="${chat.id}"
+                     onclick="app.selectChat('${chat.id}')">
+                    ${avatarHtml}
+                    <div class="chat-item-info">
+                        <div class="chat-item-name">${UI.escapeHtml(chat.name || 'Чат')}</div>
+                        <div class="chat-item-last-message" id="last-msg-${chat.id}"></div>
+                    </div>
+                    <div class="chat-item-meta">
+                        <span class="chat-item-time" id="chat-time-${chat.id}"></span>
+                    </div>
                 </div>
-                <div class="chat-item-info">
-                    <div class="chat-item-name">${UI.escapeHtml(chat.name || 'Чат')}</div>
-                    <div class="chat-item-last-message" id="last-msg-${chat.id}"></div>
-                </div>
-                <div class="chat-item-meta">
-                    <span class="chat-item-time" id="chat-time-${chat.id}"></span>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     async selectChat(chatId) {
@@ -337,8 +349,12 @@ class MessengerApp {
 
         if (chatName) chatName.textContent = chat.name || 'Чат';
         if (chatAvatar) {
-            chatAvatar.textContent = chat.chat_type === 'group' ? '👥' : UI.getInitials(chat.name);
-            chatAvatar.style.background = UI.getAvatarColor(chat.name);
+            if (chat.avatar_url) {
+                chatAvatar.innerHTML = `<img src="${chat.avatar_url}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+            } else {
+                chatAvatar.textContent = chat.chat_type === 'group' ? '👥' : UI.getInitials(chat.name);
+                chatAvatar.style.background = UI.getAvatarColor(chat.name);
+            }
         }
         if (chatStatus) {
             chatStatus.textContent = chat.chat_type === 'group' ? `${chat.members_count} участников` : '';
@@ -1352,6 +1368,72 @@ class MessengerApp {
         if (particlesEl) particlesEl.value = 80;
 
         UI.toast('Тема сброшена', 'info');
+    }
+
+    // ==================== AVATAR ====================
+
+    async handleAvatarUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            UI.toast('Только изображения', 'error');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            UI.toast('Максимум 5MB', 'error');
+            return;
+        }
+
+        try {
+            UI.toast('Загрузка аватарки...', 'info');
+            const result = await api.uploadAvatar(file);
+
+            // Обновляем в currentUser
+            this.currentUser.avatar_url = result.avatar_url;
+            localStorage.setItem('user', JSON.stringify(this.currentUser));
+
+            // Обновляем все аватарки на странице
+            this.updateMyAvatars();
+
+            UI.toast('Аватарка обновлена!', 'success');
+        } catch (error) {
+            UI.toast(error.message, 'error');
+        }
+
+        e.target.value = '';
+    }
+
+    updateMyAvatars() {
+        const avatarUrl = this.currentUser.avatar_url;
+        const name = this.currentUser.display_name || this.currentUser.username;
+        const initials = UI.getInitials(name);
+
+        // Сайдбар
+        const sidebarAvatar = document.getElementById('my-avatar');
+        if (sidebarAvatar) {
+            if (avatarUrl) {
+                sidebarAvatar.innerHTML = `<img src="${avatarUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+            } else {
+                sidebarAvatar.textContent = initials;
+            }
+        }
+
+        // Профиль меню
+        const profileAvatar = document.getElementById('profile-avatar');
+        const profileAvatarImg = document.getElementById('profile-avatar-img');
+        if (profileAvatar && profileAvatarImg) {
+            if (avatarUrl) {
+                profileAvatar.style.display = 'none';
+                profileAvatarImg.src = avatarUrl;
+                profileAvatarImg.classList.remove('hidden');
+            } else {
+                profileAvatar.style.display = 'flex';
+                profileAvatar.textContent = initials;
+                profileAvatarImg.classList.add('hidden');
+            }
+        }
     }
 
     getCurrentChat() {

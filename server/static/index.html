@@ -99,7 +99,12 @@
         <!-- Меню профиля -->
         <div id="profile-menu" class="profile-menu hidden">
             <div class="profile-menu-header">
-                <div class="avatar" id="profile-avatar" style="width: 48px; height: 48px;">U</div>
+                <div class="avatar-upload-wrapper" onclick="document.getElementById('avatar-input').click()" title="Нажми чтобы сменить аватарку">
+                    <div class="avatar large" id="profile-avatar">U</div>
+                    <img id="profile-avatar-img" class="avatar-img large hidden" alt="avatar">
+                    <div class="avatar-overlay">📷</div>
+                </div>
+                <input type="file" id="avatar-input" accept="image/*" hidden>
                 <div>
                     <div class="profile-menu-name" id="profile-name">User</div>
                     <div class="profile-menu-id" id="profile-id" onclick="app.copyMyId()">Нажми чтобы скопировать ID</div>

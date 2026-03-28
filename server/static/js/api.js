@@ -204,6 +204,27 @@ class API {
     async deleteSticker(stickerId) {
         return await this.request('DELETE', `/stickers/stickers/${stickerId}`);
     }
+    // ==================== AVATAR ====================
+
+    async uploadAvatar(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(`${this.baseUrl}/auth/me/avatar`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${this.token}`
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Ошибка загрузки аватарки');
+        }
+
+        return await response.json();
+    }
 }
 
 const api = new API();

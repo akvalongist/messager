@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File as FastAPIFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from pydantic import BaseModel, Field
@@ -218,4 +218,36 @@ async def search_users(
             for u in users
             if str(u.id) != str(current_user.id)
         ]
+    }
+@router.post("/me/avatar")
+async def upload_avatar(
+    file: UploadFile = FastAPIFile(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    contents = await file.read()
+
+    # Лимит 5MB
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(413, "Файл слишком большой. Максимум 5MB")
+
+    # Проверяем что это картинка
+    mime = file.content_type or ""
+    if not mime.startswith("image/"):
+        raise HTTPException(400, "Только изображения")
+
+    from services.file_storage import file_storage
+
+    result = await file_storage.upload_file(
+        file_data=contents,
+        original_filename=file.filename or "avatar.png",
+        content_type=mime
+    )
+
+    current_user.avatar_url = result["url"]
+    await db.flush()
+
+    return {
+        "avatar_url": result["url"],
+        "status": "updated"
     }
