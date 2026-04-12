@@ -36,3 +36,6 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+from app_config import BASE_DIR, Settings, get_settings  # noqa: E402,F401

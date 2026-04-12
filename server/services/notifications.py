@@ -9,11 +9,7 @@ import json
 import asyncio
 from datetime import datetime
 from enum import Enum
-from typing import Optional
-
 from sqlalchemy import Column, String, DateTime, Boolean, Text, ForeignKey, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import relationship
 from sqlalchemy import select, and_, update
 import uuid
@@ -43,11 +39,11 @@ class NotificationType(str, Enum):
 class Notification(Base):
     __tablename__ = "notifications"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Кому
     user_id = Column(
-        UUID(as_uuid=True),
+        String(36),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True
@@ -66,9 +62,9 @@ class Notification(Base):
     image_url = Column(Text, nullable=True)
 
     # Ссылки на связанные объекты
-    chat_id = Column(UUID(as_uuid=True), nullable=True)
-    message_id = Column(UUID(as_uuid=True), nullable=True)
-    sender_id = Column(UUID(as_uuid=True), nullable=True)
+    chat_id = Column(String(36), nullable=True)
+    message_id = Column(String(36), nullable=True)
+    sender_id = Column(String(36), nullable=True)
 
     # Дополнительные данные (JSON)
     extra_data = Column(Text, nullable=True)
@@ -91,10 +87,10 @@ class Notification(Base):
 class DeviceToken(Base):
     __tablename__ = "device_tokens"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
     user_id = Column(
-        UUID(as_uuid=True),
+        String(36),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True
@@ -515,12 +511,12 @@ class NotificationService:
 
             if device:
                 # Обновляем привязку к пользователю
-                device.user_id = uuid.UUID(user_id)
+                device.user_id = user_id
                 device.is_active = True
                 device.last_used_at = datetime.utcnow()
             else:
                 device = DeviceToken(
-                    user_id=uuid.UUID(user_id),
+                    user_id=user_id,
                     token=token,
                     platform=platform,
                     device_name=device_name
@@ -575,14 +571,14 @@ class NotificationService:
         # 1. Сохраняем в БД
         async with async_session() as db:
             notification = Notification(
-                user_id=uuid.UUID(user_id),
+                user_id=user_id,
                 notification_type=notification_type,
                 title=title,
                 body=body,
                 image_url=image_url,
-                chat_id=uuid.UUID(chat_id) if chat_id else None,
-                message_id=uuid.UUID(message_id) if message_id else None,
-                sender_id=uuid.UUID(sender_id) if sender_id else None,
+                chat_id=chat_id,
+                message_id=message_id,
+                sender_id=sender_id,
                 extra_data=json.dumps(data) if data else None
             )
             db.add(notification)
