@@ -13,7 +13,7 @@ sys.path.insert(0, str(SERVER_DIR))
 TEMP_DIR = Path(tempfile.mkdtemp(prefix="messager-test-", dir=str(ROOT)))
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(TEMP_DIR / 'test.db').as_posix()}"
 os.environ["UPLOAD_DIR"] = str(TEMP_DIR / "uploads")
-os.environ["CORS_ORIGINS"] = "http://testserver"
+os.environ["CORS_ORIGINS"] = "[\"http://testserver\"]"
 os.environ["APP_ENV"] = "test"
 
 from fastapi.testclient import TestClient  # noqa: E402

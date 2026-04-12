@@ -1,16 +1,21 @@
 import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from contextlib import asynccontextmanager
-from logging_config import configure_logging
-from database import init_db
+from fastapi.staticfiles import StaticFiles
+
 from config import get_settings
-from routes import auth, messages, notifications, stickers
+from database import init_db
+from logging_config import configure_logging
+from routes import messages, notifications
+from routes import auth_stable as auth
 from routes import chats_stable as chats
 from routes import files_secure as files
+from routes import stickers_stable as stickers
 from routes import ws_stable as ws
+
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -23,12 +28,12 @@ async def lifespan(app: FastAPI):
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
     settings.static_dir.mkdir(parents=True, exist_ok=True)
     logger.info("Messenger started")
-    print("🚀 Мессенджер запущен!")
-    print("📄 API: http://localhost:8000/docs")
-    print("💬 Чат: http://localhost:8000")
+    print("Messenger started")
+    print("API: http://localhost:8000/docs")
+    print("Chat: http://localhost:8000")
     yield
     logger.info("Messenger stopped")
-    print("👋 Мессенджер остановлен")
+    print("Messenger stopped")
 
 
 app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
@@ -41,12 +46,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ===== ВАЖНО: Порядок имеет значение! =====
-
-# 1. WebSocket — ПЕРВЫМ
 app.include_router(ws.router)
-
-# 2. REST API — ВТОРЫМ
 app.include_router(auth.router, prefix="/api")
 app.include_router(chats.router, prefix="/api")
 app.include_router(messages.router, prefix="/api")
@@ -60,17 +60,16 @@ async def health():
     return {"status": "ok", "app": settings.app_name, "env": settings.app_env}
 
 
-# 3. Главная страница — ПЕРЕД mount
 @app.get("/")
 async def root():
     return FileResponse(settings.static_dir / "index.html")
 
 
-# 4. Статика — ПОСЛЕДНИМ (mount перехватывает всё!)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=settings.app_env == "development")
