@@ -15,16 +15,34 @@ class API {
         localStorage.removeItem('user');
     }
 
-    async request(method, path, body = null) {
-        const headers = {
-            'Content-Type': 'application/json',
-        };
-
+    buildHeaders(extraHeaders = {}) {
+        const headers = { ...extraHeaders };
         if (this.token) {
-            headers['Authorization'] = `Bearer ${this.token}`;
+            headers.Authorization = `Bearer ${this.token}`;
+        }
+        return headers;
+    }
+
+    async parseResponse(response, fallbackMessage) {
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (error) {
+            data = null;
         }
 
-        const options = { method, headers };
+        if (!response.ok) {
+            throw new Error(data?.detail || fallbackMessage);
+        }
+
+        return data;
+    }
+
+    async request(method, path, body = null) {
+        const options = {
+            method,
+            headers: this.buildHeaders({ 'Content-Type': 'application/json' })
+        };
 
         if (body) {
             options.body = JSON.stringify(body);
@@ -32,29 +50,33 @@ class API {
 
         try {
             const response = await fetch(`${this.baseUrl}${path}`, options);
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.detail || 'Ошибка сервера');
-            }
-
-            return data;
+            return await this.parseResponse(response, 'Server error');
         } catch (error) {
             if (error.message === 'Failed to fetch') {
-                throw new Error('Нет подключения к серверу');
+                throw new Error('No connection to server');
             }
             throw error;
         }
     }
 
-    // ==================== AUTH ====================
+    async requestForm(path, formData, fallbackMessage) {
+        try {
+            const response = await fetch(`${this.baseUrl}${path}`, {
+                method: 'POST',
+                headers: this.buildHeaders(),
+                body: formData
+            });
+            return await this.parseResponse(response, fallbackMessage);
+        } catch (error) {
+            if (error.message === 'Failed to fetch') {
+                throw new Error('No connection to server');
+            }
+            throw error;
+        }
+    }
 
     async register(username, displayName, password, email = null) {
-        const body = {
-            username,
-            display_name: displayName,
-            password,
-        };
+        const body = { username, display_name: displayName, password };
         if (email) body.email = email;
 
         const data = await this.request('POST', '/auth/register', body);
@@ -74,8 +96,6 @@ class API {
         return await this.request('GET', '/auth/me');
     }
 
-    // ==================== CHATS ====================
-
     async getChats() {
         return await this.request('GET', '/chats/');
     }
@@ -91,45 +111,6 @@ class API {
             member_ids: memberIds
         });
     }
-
-    // ==================== MESSAGES ====================
-
-    async getMessages(chatId, limit = 50, before = null) {
-        let url = `/messages/${chatId}?limit=${limit}`;
-        if (before) url += `&before=${before}`;
-        return await this.request('GET', url);
-    }
-
-    async deleteMessage(messageId) {
-        return await this.request('DELETE', `/messages/${messageId}`);
-    }
-
-    // ==================== FILES ====================
-
-    async uploadFile(file, chatId = null) {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        let url = `${this.baseUrl}/files/upload`;
-        if (chatId) url += `?chat_id=${chatId}`;
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.token}`
-            },
-            body: formData
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Ошибка загрузки файла');
-        }
-
-        return await response.json();
-    }
-
-    // ==================== GROUP MANAGEMENT ====================
 
     async getChatInfo(chatId) {
         return await this.request('GET', `/chats/${chatId}/info`);
@@ -151,7 +132,24 @@ class API {
         return await this.request('POST', `/chats/join/${inviteCode}`);
     }
 
-    // ==================== STICKERS ====================
+    async getMessages(chatId, limit = 50, before = null) {
+        let url = `/messages/${chatId}?limit=${limit}`;
+        if (before) url += `&before=${before}`;
+        return await this.request('GET', url);
+    }
+
+    async deleteMessage(messageId) {
+        return await this.request('DELETE', `/messages/${messageId}`);
+    }
+
+    async uploadFile(file, chatId = null) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        let path = '/files/upload';
+        if (chatId) path += `?chat_id=${chatId}`;
+        return await this.requestForm(path, formData, 'File upload failed');
+    }
 
     async getMyStickers() {
         return await this.request('GET', '/stickers/packs');
@@ -184,46 +182,29 @@ class API {
     async uploadSticker(packId, file, emoji = '😀') {
         const formData = new FormData();
         formData.append('file', file);
-
-        const url = `${this.baseUrl}/stickers/packs/${packId}/stickers?emoji=${encodeURIComponent(emoji)}`;
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${this.token}` },
-            body: formData
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Ошибка загрузки стикера');
-        }
-
-        return await response.json();
+        return await this.requestForm(
+            `/stickers/packs/${packId}/stickers?emoji=${encodeURIComponent(emoji)}`,
+            formData,
+            'Sticker upload failed'
+        );
     }
 
     async deleteSticker(stickerId) {
         return await this.request('DELETE', `/stickers/stickers/${stickerId}`);
     }
-    // ==================== AVATAR ====================
 
     async uploadAvatar(file) {
         const formData = new FormData();
         formData.append('file', file);
+        return await this.requestForm('/auth/me/avatar', formData, 'Avatar upload failed');
+    }
 
-        const response = await fetch(`${this.baseUrl}/auth/me/avatar`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.token}`
-            },
-            body: formData
-        });
+    async getNotifications() {
+        return await this.request('GET', '/notifications/');
+    }
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Ошибка загрузки аватарки');
-        }
-
-        return await response.json();
+    async markNotificationsRead() {
+        return await this.request('POST', '/notifications/read-all');
     }
 }
 
