@@ -1,6 +1,6 @@
 import logging
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
@@ -13,6 +13,10 @@ from services.message_service import message_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class ConnectionManager:
@@ -107,7 +111,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 user = result.scalar_one_or_none()
                 if user:
                     user.is_online = False
-                    user.last_seen = datetime.utcnow()
+                    user.last_seen = utc_now()
                     await db.commit()
 
 

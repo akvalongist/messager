@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from config import get_settings
 from database import get_db
@@ -13,12 +13,17 @@ security = HTTPBearer()
 settings = get_settings()
 
 
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 def create_access_token(user_id: str) -> str:
-    expire = datetime.utcnow() + timedelta(hours=settings.jwt_expiration_hours)
+    issued_at = utc_now()
+    expire = issued_at + timedelta(hours=settings.jwt_expiration_hours)
     payload = {
         "sub": str(user_id),
         "exp": expire,
-        "iat": datetime.utcnow()
+        "iat": issued_at
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 

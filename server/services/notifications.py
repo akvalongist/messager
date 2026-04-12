@@ -7,7 +7,7 @@
 
 import json
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from sqlalchemy import Column, String, DateTime, Boolean, Text, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import relationship
@@ -18,6 +18,10 @@ from database import Base, async_session
 from config import get_settings
 
 settings = get_settings()
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 # ============================================================
@@ -73,7 +77,7 @@ class Notification(Base):
     is_read = Column(Boolean, default=False)
     is_pushed = Column(Boolean, default=False)  # Отправлен ли push
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
     read_at = Column(DateTime, nullable=True)
 
     # Relationships
@@ -102,8 +106,8 @@ class DeviceToken(Base):
     device_name = Column(String(100), nullable=True)
 
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    last_used_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    last_used_at = Column(DateTime, default=utc_now)
 
     user = relationship("User", foreign_keys=[user_id])
 
@@ -452,7 +456,7 @@ class NotificationService:
             notification = result.scalar_one_or_none()
             if notification:
                 notification.is_read = True
-                notification.read_at = datetime.utcnow()
+                notification.read_at = utc_now()
                 await db.commit()
                 return True
             return False
@@ -468,7 +472,7 @@ class NotificationService:
                         Notification.is_read == False
                     )
                 )
-                .values(is_read=True, read_at=datetime.utcnow())
+                .values(is_read=True, read_at=utc_now())
             )
             await db.commit()
             return result.rowcount
@@ -485,7 +489,7 @@ class NotificationService:
                         Notification.is_read == False
                     )
                 )
-                .values(is_read=True, read_at=datetime.utcnow())
+                .values(is_read=True, read_at=utc_now())
             )
             await db.commit()
             return result.rowcount
@@ -513,7 +517,7 @@ class NotificationService:
                 # Обновляем привязку к пользователю
                 device.user_id = user_id
                 device.is_active = True
-                device.last_used_at = datetime.utcnow()
+                device.last_used_at = utc_now()
             else:
                 device = DeviceToken(
                     user_id=user_id,
@@ -600,7 +604,7 @@ class NotificationService:
                 "chat_id": chat_id,
                 "message_id": message_id,
                 "sender_id": sender_id,
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": utc_now().isoformat()
             }
         })
 
@@ -626,7 +630,10 @@ class NotificationService:
     async def _send_ws_notification(self, user_id: str, message: dict):
         """Отправить уведомление через WebSocket"""
         try:
-            from routes.ws import manager
+            try:
+                from routes.ws_stable import manager
+            except Exception:
+                from routes.ws import manager
             await manager.send_to_user(user_id, message)
         except Exception:
             pass  # WebSocket может быть не подключён

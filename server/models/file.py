@@ -2,11 +2,15 @@ from sqlalchemy import (
     Column, String, DateTime, Integer, Text, Boolean, ForeignKey
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import enum
 
 from database import Base
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class FileType(str, enum.Enum):
@@ -42,7 +46,7 @@ class File(Base):
     file_hash = Column(String(128), nullable=True)
 
     is_deleted = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     deleted_at = Column(DateTime, nullable=True)
 
     uploader = relationship("User", foreign_keys=[uploader_id])

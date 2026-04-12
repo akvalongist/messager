@@ -2,10 +2,14 @@
     Column, String, DateTime, Integer, Text, Boolean, ForeignKey
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 from database import Base
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class StickerPack(Base):
@@ -19,7 +23,7 @@ class StickerPack(Base):
     is_default = Column(Boolean, default=False)  # Встроенный пак
     is_public = Column(Boolean, default=True)  # Доступен всем
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     # Relationships
     stickers = relationship("Sticker", back_populates="pack", cascade="all, delete-orphan")
@@ -36,7 +40,7 @@ class Sticker(Base):
     file_name = Column(String(255), nullable=True)
     order = Column(Integer, default=0)  # Порядок в паке
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     # Relationships
     pack = relationship("StickerPack", back_populates="stickers")
@@ -50,4 +54,4 @@ class UserStickerPack(Base):
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     pack_id = Column(String(36), ForeignKey("sticker_packs.id", ondelete="CASCADE"), nullable=False)
     order = Column(Integer, default=0)  # Порядок в списке пользователя
-    added_at = Column(DateTime, default=datetime.utcnow)
+    added_at = Column(DateTime, default=utc_now)

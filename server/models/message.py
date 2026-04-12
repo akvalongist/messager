@@ -2,11 +2,15 @@ from sqlalchemy import (
     Column, String, DateTime, Boolean, Text, Integer, ForeignKey
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import enum
 
 from database import Base
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class MessageType(str, enum.Enum):
@@ -38,7 +42,7 @@ class Message(Base):
     is_edited = Column(Boolean, default=False)
     is_deleted = Column(Boolean, default=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=utc_now, index=True)
     edited_at = Column(DateTime, nullable=True)
 
     chat = relationship("Chat", back_populates="messages")
@@ -53,6 +57,6 @@ class ReadReceipt(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     message_id = Column(String(36), ForeignKey("messages.id", ondelete="CASCADE"))
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"))
-    read_at = Column(DateTime, default=datetime.utcnow)
+    read_at = Column(DateTime, default=utc_now)
 
     message = relationship("Message", back_populates="read_receipts")

@@ -1465,6 +1465,164 @@ body {
     align-items: flex-end;
 }
 
-    .message-row.own {
+.message-row.own {
         flex-direction: row-reverse;
     }
+
+/* ============================================================
+   PROFESSIONAL OVERRIDES
+   ============================================================ */
+
+:root {
+    --theme-hue: 212;
+    --glass-opacity: 0.12;
+    --glass-blur: 24px;
+    --glass-border-opacity: 0.16;
+    --accent: hsl(var(--theme-hue), var(--theme-saturation), 58%);
+    --accent-hover: hsl(var(--theme-hue), var(--theme-saturation), 48%);
+    --accent-light: hsl(var(--theme-hue), var(--theme-saturation), 74%);
+    --accent-glow: hsla(var(--theme-hue), var(--theme-saturation), 58%, 0.32);
+    --accent-subtle: hsla(var(--theme-hue), var(--theme-saturation), 58%, 0.12);
+    --bg-primary: #071018;
+    --bg-secondary: #0d1721;
+    --bg-elevated: rgba(8, 17, 28, 0.76);
+    --bg-media-strength: 0.48;
+    --bg-media-blur: 6px;
+    --glass-shadow: 0 20px 60px rgba(0, 0, 0, 0.36);
+}
+
+body {
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+    position: relative;
+}
+
+.app-background {
+    position: fixed;
+    inset: 0;
+    z-index: -3;
+    background:
+        radial-gradient(circle at top left, rgba(72, 163, 255, 0.18), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(27, 112, 227, 0.22), transparent 28%),
+        linear-gradient(160deg, #050b12 0%, #08131e 42%, #0d1822 100%);
+    background-size: cover;
+    background-position: center;
+    transform: scale(1.03);
+    filter: blur(var(--bg-media-blur));
+    opacity: var(--bg-media-strength);
+    transition: opacity 220ms ease, filter 220ms ease, background-image 220ms ease;
+}
+
+.app-background.has-custom-media {
+    opacity: var(--bg-media-strength);
+}
+
+.app-background-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background:
+        linear-gradient(180deg, rgba(3, 8, 14, 0.46), rgba(3, 8, 14, 0.74)),
+        radial-gradient(circle at top, rgba(113, 181, 255, 0.08), transparent 34%);
+    pointer-events: none;
+}
+
+#particle-canvas {
+    z-index: -1;
+}
+
+.auth-container {
+    background: rgba(9, 16, 25, 0.56);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 28px;
+    box-shadow: 0 32px 90px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(28px);
+}
+
+.auth-logo h1 {
+    font-size: 34px;
+    font-weight: 800;
+}
+
+.sidebar,
+.chat-header,
+.message-input-area {
+    background: rgba(8, 17, 28, 0.72);
+}
+
+.chat-item.active {
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 0 24px rgba(52, 136, 214, 0.18);
+}
+
+.message.own .message-bubble {
+    background: linear-gradient(180deg, rgba(61, 139, 228, 0.42), rgba(35, 87, 153, 0.38));
+}
+
+.message.other .message-bubble {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.modal-content,
+.profile-menu,
+.sticker-panel {
+    background: rgba(8, 17, 28, 0.88);
+}
+
+#my-user-id,
+.profile-menu-id {
+    font-family: 'IBM Plex Mono', monospace;
+}
+
+#modal-theme-settings .modal-content {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
+}
+
+#modal-theme-settings .form-group label {
+    letter-spacing: 0.02em;
+    font-weight: 700;
+}
+
+#modal-theme-settings input[type="text"],
+#modal-theme-settings input[type="file"] {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+}
+
+#modal-theme-settings input[type="text"]::placeholder {
+    color: rgba(255, 255, 255, 0.38);
+}
+
+#modal-theme-settings input[type="range"] {
+    filter: drop-shadow(0 8px 18px rgba(49, 115, 199, 0.18));
+}
+
+#modal-theme-settings .btn-secondary {
+    width: 100%;
+}
+
+.chat-list {
+    padding-bottom: 18px;
+}
+
+.chat-item {
+    border: 1px solid transparent;
+    transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.chat-item:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+.messages-list {
+    padding-bottom: 18px;
+}
+
+.message-bubble {
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.14);
+}

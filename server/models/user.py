@@ -1,9 +1,13 @@
 from sqlalchemy import Column, String, DateTime, Boolean, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 from database import Base
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class User(Base):
@@ -20,8 +24,8 @@ class User(Base):
     public_key = Column(Text, nullable=True)
 
     is_online = Column(Boolean, default=False)
-    last_seen = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    last_seen = Column(DateTime, default=utc_now)
+    created_at = Column(DateTime, default=utc_now)
 
     sent_messages = relationship("Message", back_populates="sender", foreign_keys="Message.sender_id")
     chat_members = relationship("ChatMember", back_populates="user")

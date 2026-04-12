@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XAM Messenger</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div id="app-background" class="app-background"></div>
+    <div class="app-background-overlay"></div>
     <!-- ЧАСТИЦЫ -->
     <canvas id="particle-canvas"></canvas>
 
@@ -406,6 +408,29 @@
                     <input type="range" id="theme-particles" min="20" max="150" value="80"
                            style="width: 100%; accent-color: var(--accent);"
                            oninput="app.updateTheme()">
+                </div>
+                <div class="form-group">
+                    <label>Фон по ссылке</label>
+                    <input type="text" id="theme-background-url" placeholder="https://.../background.gif">
+                </div>
+                <div class="form-group">
+                    <label>Своя картинка или gif</label>
+                    <input type="file" id="theme-background-file" accept="image/*,image/gif">
+                </div>
+                <div class="form-group">
+                    <label>Сила фона</label>
+                    <input type="range" id="theme-background-strength" min="0" max="100" value="48"
+                           style="width: 100%; accent-color: var(--accent);"
+                           oninput="app.updateTheme()">
+                </div>
+                <div class="form-group">
+                    <label>Размытие фона</label>
+                    <input type="range" id="theme-background-blur" min="0" max="24" value="6"
+                           style="width: 100%; accent-color: var(--accent);"
+                           oninput="app.updateTheme()">
+                </div>
+                <div class="form-group">
+                    <button class="btn-secondary" type="button" id="btn-clear-background">Убрать свой фон</button>
                 </div>
             </div>
             <div class="modal-footer">
